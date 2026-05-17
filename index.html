@@ -96,8 +96,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let holdTimer = null;
-const HOLD_DELAY = 500; // ms (adjust if needed)
+
   let map = L.map("map").setView([37.7749, -122.4194], 12);
   let start = null;
   let stops = [];
@@ -116,6 +115,34 @@ const HOLD_DELAY = 500; // ms (adjust if needed)
   );
 
   lightTiles.addTo(map);
+  
+  let holdTimer = null;
+const HOLD_DELAY = 500;
+
+map.on("touchstart", e => {
+  // prevent Leaflet from hijacking the gesture
+  map.dragging.disable();
+
+  holdTimer = setTimeout(() => {
+    addStopFromCoords(e.latlng);
+  }, HOLD_DELAY);
+});
+
+map.on("touchmove touchend touchcancel", () => {
+  clearTimeout(holdTimer);
+  map.dragging.enable();
+});
+
+// Desktop fallback
+map.on("mousedown", e => {
+  holdTimer = setTimeout(() => {
+    addStopFromCoords(e.latlng);
+  }, HOLD_DELAY);
+});
+
+map.on("mouseup mouseleave", () => {
+  clearTimeout(holdTimer);
+});
   
   map.on("mousedown touchstart", e => {
   holdTimer = setTimeout(() => {
