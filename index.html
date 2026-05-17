@@ -125,10 +125,9 @@ function useCurrentLocation() {
 }
 
 // -------- Optimize Route --------
-
 async function optimizeRoute() {
-  if (coords.length < 2) {
-    alert("Add at least 2 stops");
+  if (coords.length < 3) {
+    alert("Add at least 1 start + 2 stops to see optimization");
     return;
   }
 
@@ -137,25 +136,25 @@ async function optimizeRoute() {
   const coordStr = coords.map(c => c.join(',')).join(';');
   const url =
     `https://router.project-osrm.org/trip/v1/driving/${coordStr}` +
-    `?overview=full&geometries=geojson&source=first`;
+    `?overview=full&geometries=geojson&source=first&roundtrip=false`;
 
   const res = await fetch(url);
   const data = await res.json();
 
-  if (!data.trips || !data.trips.length) {
-    alert("Route optimization failed");
+  if (data.code !== "Ok") {
+    alert("OSRM error — see console");
     console.error(data);
     return;
   }
 
-  // ✅ CORRECT mapping
-  optimizedOrder = data.trips[0].waypoints
+  optimizedOrder = data.waypoints
     .sort((a, b) => a.waypoint_index - b.waypoint_index)
     .map(w => coords[w.index]);
 
   routeLayer = L.geoJSON(data.trips[0].geometry).addTo(map);
   map.fitBounds(routeLayer.getBounds());
 }
+
 
 
 // -------- Open Apple Maps --------
