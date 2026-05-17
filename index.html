@@ -2,55 +2,110 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Mobile Route Optimizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Route Runner</title>
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
+:root {
+  --blue: #007aff;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #1c1c1e;
+  --sub: #6c6c70;
+  --danger: #ff3b30;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 html, body {
   margin: 0;
-  padding: 0;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
 #map {
-  height: 60%;
+  height: 55vh;
 }
 
-#controls {
-  padding: 12px;
+#panel {
+  padding: 14px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--sub);
+  margin-bottom: 12px;
 }
 
 input {
   width: 100%;
-  padding: 10px;
+  padding: 14px;
   font-size: 16px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  margin-bottom: 10px;
 }
 
 button {
   width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  background: #007aff;
-  color: white;
+  padding: 14px;
+  font-size: 17px;
+  border-radius: 14px;
   border: none;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  background: var(--blue);
+  color: white;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+button.secondary {
+  background: #34c759;
 }
 
 button:active {
-  opacity: 0.8;
+  transform: scale(0.98);
 }
 
-#list {
+.stop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.stop:last-child {
+  border-bottom: none;
+}
+
+.stop span {
   font-size: 14px;
-  color: #333;
+}
+
+.remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 18px;
+  padding: 6px;
 }
 </style>
 </head>
@@ -59,96 +114,100 @@ button:active {
 
 <div id="map"></div>
 
-<div id="controls">
-  <input id="address" placeholder="Enter address and tap Add" />
-  <button onclick="addAddress()">Add Stop</button>
-  <button onclick="optimizeRoute()">Optimize Route</button>
-  <div id="list"></div>
+<div id="panel">
+  <div class="card">
+    <h1>Route Runner</h1>
+    <div class="subtitle">Fast multi-stop routing from your location</div>
+
+    <input id="address" placeholder="Add a stop address" />
+    <button onclick="addStop()">Add Stop</button>
+    <button class="secondary" onclick="optimizeRoute()">Optimize Route</button>
+
+    <div id="stops"></div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 let map = L.map("map");
+let start = null;
 let stops = [];
 let markers = [];
 let routeLine = null;
-let startPoint = null;
 
-// Load map
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
 // Get current location
-navigator.geolocation.getCurrentPosition(
-  pos => {
-    startPoint = [pos.coords.latitude, pos.coords.longitude];
-    map.setView(startPoint, 13);
-    L.marker(startPoint).addTo(map).bindPopup("Start").openPopup();
-  },
-  () => alert("Location permission required")
-);
+navigator.geolocation.getCurrentPosition(pos => {
+  start = [pos.coords.latitude, pos.coords.longitude];
+  map.setView(start, 13);
+  L.marker(start).addTo(map).bindPopup("You are here").openPopup();
+});
 
 async function geocode(address) {
   let res = await fetch(
     `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
   );
   let data = await res.json();
-  if (!data.length) throw "Address not found";
+  if (!data.length) throw "Not found";
   return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
 }
 
-async function addAddress() {
+async function addStop() {
   let input = document.getElementById("address");
-  let addr = input.value.trim();
-  if (!addr) return;
+  let value = input.value.trim();
+  if (!value) return;
 
   try {
-    let coord = await geocode(addr);
+    let coord = await geocode(value);
     stops.push(coord);
-    let marker = L.marker(coord).addTo(map);
-    markers.push(marker);
+    markers.push(L.marker(coord).addTo(map));
     input.value = "";
-    updateList();
+    renderStops();
   } catch {
-    alert("Could not find address");
+    alert("Address not found");
   }
 }
 
-function updateList() {
-  document.getElementById("list").innerHTML =
-    stops.map((s, i) => `Stop ${i + 1}: ${s[0].toFixed(5)}, ${s[1].toFixed(5)}`).join("<br>");
+function removeStop(index) {
+  map.removeLayer(markers[index]);
+  markers.splice(index, 1);
+  stops.splice(index, 1);
+  renderStops();
+}
+
+function renderStops() {
+  document.getElementById("stops").innerHTML = stops
+    .map(
+      (s, i) => `
+      <div class="stop">
+        <span>Stop ${i + 1}</span>
+        <button class="remove" onclick="removeStop(${i})">✕</button>
+      </div>`
+    )
+    .join("");
 }
 
 async function optimizeRoute() {
-  if (!startPoint || stops.length === 0) return;
+  if (!start || stops.length === 0) return;
 
-  if (routeLine) {
-    map.removeLayer(routeLine);
-  }
+  if (routeLine) map.removeLayer(routeLine);
 
-  let coords = [startPoint, ...stops]
+  let coords = [start, ...stops]
     .map(c => `${c[1]},${c[0]}`)
     .join(";");
 
-  let url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+  let url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`;
 
   let res = await fetch(url);
   let data = await res.json();
+  if (!data.trips) return alert("Route failed");
 
-  if (!data.trips || !data.trips.length) {
-    alert("Route failed");
-    return;
-  }
-
-  let routeCoords = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-
-  routeLine = L.polyline(routeCoords, {
-    color: "blue",
-    weight: 5
-  }).addTo(map);
-
+  let route = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
+  routeLine = L.polyline(route, { color: "#007aff", weight: 5 }).addTo(map);
   map.fitBounds(routeLine.getBounds());
 }
 </script>
