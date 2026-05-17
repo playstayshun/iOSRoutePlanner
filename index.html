@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+Put your HTML text here<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -168,14 +168,46 @@ map.on("mouseup touchend move", () => {
   );
 
   async function geocode(address) {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+  if (!start) throw "No location";
+
+  const [lat, lon] = start;
+
+  // Bias search near user, within ~25km
+  const viewbox = [
+    lon - 0.25,
+    lat - 0.25,
+    lon + 0.25,
+    lat + 0.25
+  ].join(",");
+
+  const url =
+    `https://nominatim.openstreetmap.org/search` +
+    `?format=json` +
+    `&q=${encodeURIComponent(address)}` +
+    `&limit=1` +
+    `&viewbox=${viewbox}` +
+    `&bounded=1`;
+
+  const res = await fetch(url, {
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+
+  const data = await res.json();
+
+  // 🔁 Fallback to global search if local fails
+  if (!data.length) {
+    const fallback = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
     );
-    const data = await res.json();
-    if (!data.length) throw "Not found";
-    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    const fallbackData = await fallback.json();
+    if (!fallbackData.length) throw "Not found";
+    return [parseFloat(fallbackData[0].lat), parseFloat(fallbackData[0].lon)];
   }
 
+  return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+}
   async function addStop() {
     const input = document.getElementById("address");
     const value = input.value.trim();
