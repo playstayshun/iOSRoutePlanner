@@ -1,113 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Route Runner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Route Runner</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<style>
-:root {
-  --blue: #007aff;
-  --bg: #f2f2f7;
-  --card: #ffffff;
-  --text: #1c1c1e;
-  --sub: #6c6c70;
-  --danger: #ff3b30;
-}
+  <style>
+    :root {
+      --blue:#007aff;
+      --bg:#f2f2f7;
+      --card:#ffffff;
+      --text:#1c1c1e;
+      --sub:#6c6c70;
+      --danger:#ff3b30;
+    }
 
-* {
-  box-sizing: border-box;
-}
+    body.dark {
+      --bg:#0f0f14;
+      --card:#1c1c1e;
+      --text:#f2f2f7;
+      --sub:#a1a1a6;
+    }
 
-html, body {
-  margin: 0;
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;height:100%;
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;
+      background:var(--bg);color:var(--text);
+    }
 
-#map {
-  height: 55vh;
-}
+    #map{height:55vh}
+    #panel{padding:14px}
 
-#panel {
-  padding: 14px;
-}
+    .card{
+      background:var(--card);
+      border-radius:16px;
+      padding:14px;
+      box-shadow:0 8px 24px rgba(0,0,0,.15)
+    }
 
-.card {
-  background: var(--card);
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-}
+    h1{margin:0 0 6px;font-size:20px}
+    .subtitle{color:var(--sub);font-size:14px;margin-bottom:12px}
 
-h1 {
-  font-size: 20px;
-  margin: 0 0 8px;
-}
+    input,button{
+      width:100%;padding:14px;font-size:16px;
+      border-radius:14px;border:none;margin-bottom:10px
+    }
 
-.subtitle {
-  font-size: 14px;
-  color: var(--sub);
-  margin-bottom: 12px;
-}
+    input{border:1px solid #ccc}
 
-input {
-  width: 100%;
-  padding: 14px;
-  font-size: 16px;
-  border-radius: 12px;
-  border: 1px solid #ddd;
-  margin-bottom: 10px;
-}
+    button{background:var(--blue);color:white;font-weight:600}
+    button.secondary{background:#34c759}
+    button.danger{background:var(--danger)}
+    button.ghost{
+      background:none;color:var(--text);border:1px solid #ccc
+    }
+    button:active{transform:scale(.97)}
 
-button {
-  width: 100%;
-  padding: 14px;
-  font-size: 17px;
-  border-radius: 14px;
-  border: none;
-  background: var(--blue);
-  color: white;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-button.secondary {
-  background: #34c759;
-}
-
-button:active {
-  transform: scale(0.98);
-}
-
-.stop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.stop:last-child {
-  border-bottom: none;
-}
-
-.stop span {
-  font-size: 14px;
-}
-
-.remove {
-  background: none;
-  border: none;
-  color: var(--danger);
-  font-size: 18px;
-  padding: 6px;
-}
-</style>
+    .stop{
+      display:flex;justify-content:space-between;
+      padding:10px 0;border-bottom:1px solid #eee
+    }
+    .stop:last-child{border-bottom:none}
+    .remove{
+      background:none;border:none;color:var(--danger);
+      font-size:18px
+    }
+  </style>
 </head>
 
 <body>
@@ -117,99 +78,157 @@ button:active {
 <div id="panel">
   <div class="card">
     <h1>Route Runner</h1>
-    <div class="subtitle">Fast multi-stop routing from your location</div>
+    <div class="subtitle">Fast multi-stop routing</div>
 
+    <label for="address" style="position:absolute;left:-9999px;">
+      Stop address
+    </label>
     <input id="address" placeholder="Add a stop address" />
     <button onclick="addStop()">Add Stop</button>
     <button class="secondary" onclick="optimizeRoute()">Optimize Route</button>
+    <button class="danger" onclick="clearRoute()">Clear Route</button>
+    <button class="ghost" onclick="toggleDark()">🌙 Night Mode</button>
+
 
     <div id="stops"></div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-let map = L.map("map");
-let start = null;
-let stops = [];
-let markers = [];
-let routeLine = null;
+  let map = L.map("map").setView([37.7749, -122.4194], 12);
+  let start = null;
+  let stops = [];
+  let markers = [];
+  let routeLine = null;
+  let darkMode = false;
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19
-}).addTo(map);
-
-// Get current location
-navigator.geolocation.getCurrentPosition(pos => {
-  start = [pos.coords.latitude, pos.coords.longitude];
-  map.setView(start, 13);
-  L.marker(start).addTo(map).bindPopup("You are here").openPopup();
-});
-
-async function geocode(address) {
-  let res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+  const lightTiles = L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    { maxZoom: 19 }
   );
-  let data = await res.json();
-  if (!data.length) throw "Not found";
-  return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-}
 
-async function addStop() {
-  let input = document.getElementById("address");
-  let value = input.value.trim();
-  if (!value) return;
+  const darkTiles = L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    { maxZoom: 19 }
+  );
 
-  try {
-    let coord = await geocode(value);
-    stops.push(coord);
-    markers.push(L.marker(coord).addTo(map));
-    input.value = "";
-    renderStops();
-  } catch {
-    alert("Address not found");
+  lightTiles.addTo(map);
+
+  // ALWAYS get user location as start
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      start = [pos.coords.latitude, pos.coords.longitude];
+      map.setView(start, 14);
+      L.marker(start).addTo(map).bindPopup("You are here").openPopup();
+    },
+    () => {
+      alert("Location required to build routes.");
+    },
+    { enableHighAccuracy: true }
+  );
+
+  async function geocode(address) {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+    );
+    const data = await res.json();
+    if (!data.length) throw "Not found";
+    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
   }
-}
 
-function removeStop(index) {
-  map.removeLayer(markers[index]);
-  markers.splice(index, 1);
-  stops.splice(index, 1);
-  renderStops();
-}
+  async function addStop() {
+    const input = document.getElementById("address");
+    const value = input.value.trim();
+    if (!value || !start) return;
 
-function renderStops() {
-  document.getElementById("stops").innerHTML = stops
-    .map(
-      (s, i) => `
-      <div class="stop">
-        <span>Stop ${i + 1}</span>
-        <button class="remove" onclick="removeStop(${i})">✕</button>
-      </div>`
-    )
-    .join("");
-}
+    try {
+      const coord = await geocode(value);
+      stops.push(coord);
+      markers.push(L.marker(coord).addTo(map));
+      input.value = "";
+      renderStops();
+      optimizeRoute(); // AUTO rebuild
+    } catch {
+      alert("Address not found");
+    }
+  }
 
-async function optimizeRoute() {
-  if (!start || stops.length === 0) return;
+  function removeStop(index) {
+    map.removeLayer(markers[index]);
+    markers.splice(index, 1);
+    stops.splice(index, 1);
+    renderStops();
 
-  if (routeLine) map.removeLayer(routeLine);
+    if (stops.length === 0) {
+      clearRoute();
+    } else {
+      optimizeRoute(); // AUTO rebuild
+    }
+  }
 
-  let coords = [start, ...stops]
-    .map(c => `${c[1]},${c[0]}`)
-    .join(";");
+  function renderStops() {
+    document.getElementById("stops").innerHTML = stops
+      .map(
+        (_, i) => `
+        <div class="stop">
+          <span>Stop ${i + 1}</span>
+          <button class="remove" onclick="removeStop(${i})">✕</button>
+        </div>`
+      )
+      .join("");
+  }
 
-  let url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`;
+  function clearRoute() {
+    if (routeLine) {
+      map.removeLayer(routeLine);
+      routeLine = null;
+    }
+  }
 
-  let res = await fetch(url);
-  let data = await res.json();
-  if (!data.trips) return alert("Route failed");
+  async function optimizeRoute() {
+    if (!start || stops.length === 0) return;
 
-  let route = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-  routeLine = L.polyline(route, { color: "#007aff", weight: 5 }).addTo(map);
-  map.fitBounds(routeLine.getBounds());
-}
+    clearRoute();
+
+    const coords = [start, ...stops]
+      .map(c => `${c[1]},${c[0]}`)
+      .join(";");
+
+    const url =
+      `https://router.project-osrm.org/trip/v1/driving/${coords}` +
+      `?source=first&roundtrip=false&geometries=geojson`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.trips) {
+      alert("Route failed");
+      return;
+    }
+
+    const route = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
+    routeLine = L.polyline(route, {
+      color: darkMode ? "#0a84ff" : "#007aff",
+      weight: 5
+    }).addTo(map);
+
+    map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+  }
+
+  // 🌙 Night mode toggle
+  function toggleNightMode() {
+    darkMode = !darkMode;
+
+    map.eachLayer(layer => map.removeLayer(layer));
+    (darkMode ? darkTiles : lightTiles).addTo(map);
+
+    if (start) L.marker(start).addTo(map);
+    markers.forEach(m => m.addTo(map));
+    if (stops.length) optimizeRoute();
+
+    document.body.style.background = darkMode ? "#000" : "";
+  }
 </script>
 
 </body>
