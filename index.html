@@ -2,31 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Route Optimizer – WORKING</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Mobile Route Optimizer</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
 
 <style>
-body {
+html, body {
   margin: 0;
-  font-family: system-ui, -apple-system;
-  background: #111;
-  color: #fff;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
-#map { height: 55vh; }
-.controls { padding: 12px; }
-input, button {
+
+#map {
+  height: 60%;
+}
+
+#controls {
+  padding: 12px;
+}
+
+input {
   width: 100%;
-  padding: 14px;
-  margin-top: 8px;
-  border-radius: 12px;
-  border: none;
+  padding: 10px;
   font-size: 16px;
+  margin-bottom: 8px;
 }
-input { background: #222; color: #fff; }
-button { background: #00aaff; color: #000; font-weight: 700; }
-.secondary { background: #333; color: #fff; }
+
+button {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+button:active {
+  opacity: 0.8;
+}
+
+#list {
+  font-size: 14px;
+  color: #333;
+}
 </style>
 </head>
 
@@ -34,112 +59,97 @@ button { background: #00aaff; color: #000; font-weight: 700; }
 
 <div id="map"></div>
 
-<div class="controls">
-  <input id="address" placeholder="Add address">
-  <button onclick="addStop()">Add Stop</button>
-  <button class="secondary" onclick="useLocation()">Use Current Location</button>
-  <button onclick="optimize()">Optimize Route</button>
-  <button class="secondary" onclick="openAppleMaps()">Open in Apple Maps</button>
+<div id="controls">
+  <input id="address" placeholder="Enter address and tap Add" />
+  <button onclick="addAddress()">Add Stop</button>
+  <button onclick="optimizeRoute()">Optimize Route</button>
+  <div id="list"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-/* ---------------- MAP SETUP ---------------- */
-const map = L.map('map').setView([32.7767, -96.7970], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let map = L.map("map");
+let stops = [];
+let markers = [];
+let routeLine = null;
+let startPoint = null;
 
-let coords = [];
-let routeLayer = null;
-let optimized = null;
+// Load map
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19
+}).addTo(map);
 
-/* ---------------- GEOCODE ---------------- */
-async function geocode(addr) {
-  const r = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`
+// Get current location
+navigator.geolocation.getCurrentPosition(
+  pos => {
+    startPoint = [pos.coords.latitude, pos.coords.longitude];
+    map.setView(startPoint, 13);
+    L.marker(startPoint).addTo(map).bindPopup("Start").openPopup();
+  },
+  () => alert("Location permission required")
+);
+
+async function geocode(address) {
+  let res = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
   );
-  const j = await r.json();
-  if (!j.length) throw "not found";
-  return [parseFloat(j[0].lon), parseFloat(j[0].lat)];
+  let data = await res.json();
+  if (!data.length) throw "Address not found";
+  return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
 }
 
-/* ---------------- ADD STOP ---------------- */
-async function addStop() {
-  const input = document.getElementById('address');
-  if (!input.value) return;
+async function addAddress() {
+  let input = document.getElementById("address");
+  let addr = input.value.trim();
+  if (!addr) return;
 
-  const [lon, lat] = await geocode(input.value);
-  coords.push([lon, lat]);
-  L.marker([lat, lon]).addTo(map);
-  map.setView([lat, lon], 13);
-  input.value = '';
+  try {
+    let coord = await geocode(addr);
+    stops.push(coord);
+    let marker = L.marker(coord).addTo(map);
+    markers.push(marker);
+    input.value = "";
+    updateList();
+  } catch {
+    alert("Could not find address");
+  }
 }
 
-/* ---------------- LOCATION ---------------- */
-function useLocation() {
-  navigator.geolocation.getCurrentPosition(p => {
-    const lat = p.coords.latitude;
-    const lon = p.coords.longitude;
-    coords.unshift([lon, lat]);
-    L.marker([lat, lon]).addTo(map).bindPopup("Start").openPopup();
-    map.setView([lat, lon], 14);
-  }, () => alert("Location denied"));
+function updateList() {
+  document.getElementById("list").innerHTML =
+    stops.map((s, i) => `Stop ${i + 1}: ${s[0].toFixed(5)}, ${s[1].toFixed(5)}`).join("<br>");
 }
 
-/* ---------------- OPTIMIZE (PROOF LOGS) ---------------- */
-async function optimize() {
-  console.log("Optimize clicked");
-  console.log("Coords:", coords);
+async function optimizeRoute() {
+  if (!startPoint || stops.length === 0) return;
 
-  if (coords.length < 2) {
-    alert("Add at least 2 points");
+  if (routeLine) {
+    map.removeLayer(routeLine);
+  }
+
+  let coords = [startPoint, ...stops]
+    .map(c => `${c[1]},${c[0]}`)
+    .join(";");
+
+  let url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+
+  let res = await fetch(url);
+  let data = await res.json();
+
+  if (!data.trips || !data.trips.length) {
+    alert("Route failed");
     return;
   }
 
-  if (routeLayer) map.removeLayer(routeLayer);
+  let routeCoords = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
 
-  const q = coords.map(c => c.join(',')).join(';');
-  const url =
-    `https://router.project-osrm.org/trip/v1/driving/${q}` +
-    `?overview=full&geometries=geojson`;
+  routeLine = L.polyline(routeCoords, {
+    color: "blue",
+    weight: 5
+  }).addTo(map);
 
-  const res = await fetch(url);
-  const data = await res.json();
-
-  console.log("OSRM response:", data);
-
-  if (data.code !== "Ok") {
-    alert("OSRM error");
-    return;
-  }
-
-  optimized = data.waypoints
-    .sort((a,b)=>a.waypoint_index-b.waypoint_index)
-    .map(w => coords[w.index]);
-
-  routeLayer = L.geoJSON(data.trips[0].geometry).addTo(map);
-  map.fitBounds(routeLayer.getBounds());
-
-  alert("Route optimized ✔");
-}
-
-/* ---------------- APPLE MAPS ---------------- */
-function openAppleMaps() {
-  if (!optimized) {
-    alert("Optimize first");
-    return;
-  }
-
-  const start = optimized[0].slice().reverse().join(',');
-  const end = optimized.at(-1).slice().reverse().join(',');
-  const mid = optimized.slice(1,-1)
-    .map(c=>c.slice().reverse().join(','))
-    .join('|');
-
-  let url = `https://maps.apple.com/?saddr=${start}&daddr=${end}&dirflg=d`;
-  if (mid) url += `&waypoints=${mid}`;
-
-  window.location.href = url;
+  map.fitBounds(routeLine.getBounds());
 }
 </script>
 
