@@ -96,6 +96,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    let holdTimer = null;
+const HOLD_DELAY = 500; // ms (adjust if needed)
   let map = L.map("map").setView([37.7749, -122.4194], 12);
   let start = null;
   let stops = [];
@@ -114,6 +116,16 @@
   );
 
   lightTiles.addTo(map);
+  
+  map.on("mousedown touchstart", e => {
+  holdTimer = setTimeout(() => {
+    addStopFromCoords(e.latlng);
+  }, HOLD_DELAY);
+});
+
+map.on("mouseup touchend move", () => {
+  clearTimeout(holdTimer);
+});
 
   // ALWAYS get user location as start
   navigator.geolocation.getCurrentPosition(
@@ -185,6 +197,22 @@
       routeLine = null;
     }
   }
+
+function addStopFromCoords(latlng) {
+  if (!start) return;
+if (navigator.vibrate) navigator.vibrate(30);
+  const coord = [latlng.lat, latlng.lng];
+
+  stops.push(coord);
+  markers.push(
+    L.marker(coord)
+      .addTo(map)
+      .bindPopup(`Stop ${stops.length}`)
+  );
+
+  renderStops();
+  optimizeRoute(); // auto rebuild
+}
 
   async function optimizeRoute() {
     if (!start || stops.length === 0) return;
