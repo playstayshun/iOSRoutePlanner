@@ -2,43 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Simple Route Runner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#0f0a0a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Simple Route Planner</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     :root {
-      --bg:      #0c0c10;
-      --surface: #13131a;
-      --raised:  #1c1c26;
-      --border:  rgba(255,255,255,.07);
-      --text:    #f0f0f5;
-      --muted:   #5a5a72;
-      --accent:  #00d4ff;
-      --accent2: #0095b3;
-      --danger:  #ff4455;
-      --go:      #00e07a;
-      --go2:     #00a858;
-      --radius:  10px;
+      --red:       #e8293a;
+      --red-dim:   #b01e2b;
+      --red-glow:  rgba(232,41,58,.18);
+      --red-soft:  rgba(232,41,58,.10);
+      --bg:        #0f0a0a;
+      --surface:   #170d0d;
+      --raised:    #201212;
+      --raised2:   #2a1717;
+      --border:    rgba(255,255,255,.07);
+      --border-r:  rgba(232,41,58,.2);
+      --text:      #f5f0f0;
+      --muted:     #6b5555;
+      --radius:    12px;
+      --safe-b:    env(safe-area-inset-bottom, 0px);
+      --safe-t:    env(safe-area-inset-top, 0px);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html, body {
+    html {
+      height: 100%;
+      /* Prevent iOS bounce scroll on the page itself */
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+    }
+
+    body {
       height: 100%;
       font-family: 'DM Sans', sans-serif;
       background: var(--bg);
       color: var(--text);
       -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     /* ── MAP ──────────────────────────────────────────────── */
     #map-wrap {
       position: relative;
-      height: 52vh;
+      flex: 1 1 0;
+      min-height: 0;
     }
 
     #map {
@@ -46,97 +67,125 @@
       width: 100%;
     }
 
-    /* Leaflet attribution cleanup */
+    /* Leaflet overrides */
     .leaflet-control-attribution {
-      background: rgba(0,0,0,.5) !important;
-      color: rgba(255,255,255,.35) !important;
+      background: rgba(0,0,0,.55) !important;
+      color: rgba(255,255,255,.3) !important;
       font-size: 9px !important;
+      backdrop-filter: blur(4px);
     }
-    .leaflet-control-attribution a { color: rgba(255,255,255,.4) !important; }
+    .leaflet-control-attribution a { color: rgba(255,255,255,.35) !important; }
+    .leaflet-control-zoom {
+      border: none !important;
+      box-shadow: 0 2px 12px rgba(0,0,0,.5) !important;
+    }
+    .leaflet-control-zoom a {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+      font-size: 18px !important;
+      width: 38px !important;
+      height: 38px !important;
+      line-height: 38px !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background: var(--raised2) !important;
+      color: var(--red) !important;
+    }
 
-    /* Pin-mode ring */
-    #map.pin-mode { outline: 2px solid var(--accent); outline-offset: -2px; }
+    /* Pin mode ring */
+    #map.pin-mode { outline: 2.5px solid var(--red); outline-offset: -2px; }
 
-    /* Status pill that floats on the map */
+    /* Floating status pill */
     #status-pill {
       position: absolute;
       top: 12px;
       left: 50%;
-      transform: translateX(-50%) translateY(-4px);
-      z-index: 1000;
-      background: var(--accent);
-      color: #000;
+      transform: translateX(-50%) translateY(-6px);
+      z-index: 900;
+      background: var(--red);
+      color: #fff;
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700;
       font-size: 13px;
-      letter-spacing: .08em;
+      letter-spacing: .1em;
       text-transform: uppercase;
-      padding: 6px 16px;
+      padding: 7px 18px;
       border-radius: 4px;
       pointer-events: none;
       opacity: 0;
-      transition: opacity .2s, transform .2s;
+      transition: opacity .2s ease, transform .2s ease;
       white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(232,41,58,.4);
     }
     #status-pill.show {
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
 
-    /* ── PANEL ─────────────────────────────────────────────── */
+    /* ── BOTTOM SHEET PANEL ───────────────────────────────── */
     #panel {
-      height: 48vh;
+      flex: 0 0 auto;
       background: var(--surface);
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      /* Safe area for phones with home indicator */
+      padding-bottom: var(--safe-b);
+      max-height: 52vh;
     }
 
-    /* Header bar */
+    /* Drag handle hint */
+    #drag-handle {
+      width: 36px; height: 4px;
+      background: var(--raised2);
+      border-radius: 2px;
+      margin: 10px auto 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── APP HEADER ───────────────────────────────────────── */
     #header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 16px 12px;
-      border-bottom: 1px solid var(--border);
+      padding: 4px 16px 10px;
       flex-shrink: 0;
     }
 
-    #header h1 {
+    #app-name {
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: .04em;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .06em;
       text-transform: uppercase;
       color: var(--text);
+      line-height: 1;
     }
 
-    #header h1 span {
-      color: var(--accent);
-    }
+    #app-name span { color: var(--red); }
 
-    /* Night-mode toggle — icon button top-right */
-    #btn-night {
-      width: 34px; height: 34px;
-      border-radius: 8px;
+    /* Header right — icon buttons */
+    .hdr-btn {
+      width: 38px; height: 38px;
+      border-radius: 10px;
       background: var(--raised);
       border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       color: var(--muted);
-      transition: color .15s, background .15s;
-      flex-shrink: 0;
+      transition: color .15s, background .15s, border-color .15s;
+      -webkit-tap-highlight-color: transparent;
     }
-    #btn-night:hover, #btn-night.active { color: var(--accent); background: rgba(0,212,255,.08); }
+    .hdr-btn:active { background: var(--raised2); color: var(--red); }
+    .hdr-btn.active { color: var(--red); border-color: var(--border-r); background: var(--red-soft); }
 
-    /* Input row */
+    /* ── INPUT ROW ────────────────────────────────────────── */
     #input-row {
       display: flex;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 0 16px 10px;
       flex-shrink: 0;
-      border-bottom: 1px solid var(--border);
     }
 
     #address {
@@ -146,195 +195,209 @@
       border-radius: var(--radius);
       color: var(--text);
       font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      padding: 0 12px;
-      height: 40px;
+      font-size: 15px;
+      padding: 0 14px;
+      height: 48px; /* large touch target */
       outline: none;
-      transition: border-color .15s;
+      transition: border-color .15s, background .15s;
+      -webkit-appearance: none;
     }
     #address::placeholder { color: var(--muted); }
-    #address:focus { border-color: var(--accent); }
+    #address:focus {
+      border-color: var(--red);
+      background: var(--raised2);
+    }
 
     #btn-add {
-      height: 40px;
-      padding: 0 16px;
-      background: var(--accent);
-      color: #000;
+      height: 48px;
+      padding: 0 20px;
+      background: var(--red);
+      color: #fff;
       border: none;
       border-radius: var(--radius);
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 700;
-      letter-spacing: .06em;
+      letter-spacing: .07em;
       text-transform: uppercase;
       cursor: pointer;
       white-space: nowrap;
       transition: background .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
     }
-    #btn-add:active { transform: scale(.96); background: var(--accent2); }
+    #btn-add:active { background: var(--red-dim); transform: scale(.96); }
 
-    /* Action row */
+    /* ── ACTION ROW ───────────────────────────────────────── */
     #action-row {
       display: flex;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 0 16px 10px;
       flex-shrink: 0;
-      border-bottom: 1px solid var(--border);
     }
 
     .action-btn {
       flex: 1;
-      height: 38px;
+      height: 44px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--raised);
-      color: var(--text);
+      color: var(--muted);
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .07em;
+      font-weight: 700;
+      letter-spacing: .08em;
       text-transform: uppercase;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: background .15s, border-color .15s, color .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-appearance: none;
     }
     .action-btn:active { transform: scale(.96); }
 
-    .action-btn svg { flex-shrink: 0; }
-
-    /* Pin mode button */
-    #btn-pin { border-color: rgba(0,212,255,.25); }
-    #btn-pin:hover { background: rgba(0,212,255,.08); color: var(--accent); border-color: var(--accent); }
-    #btn-pin.active {
-      background: rgba(0,212,255,.15);
-      border-color: var(--accent);
-      color: var(--accent);
+    #btn-pin:active, #btn-pin.active {
+      background: var(--red-soft);
+      border-color: var(--red);
+      color: var(--red);
     }
 
-    /* Optimize button */
-    #btn-optimize { border-color: rgba(0,224,122,.25); }
-    #btn-optimize:hover { background: rgba(0,224,122,.08); color: var(--go); border-color: var(--go); }
+    #btn-optimize:active {
+      background: rgba(0,200,100,.08);
+      border-color: rgba(0,200,100,.4);
+      color: #00c864;
+    }
 
-    /* Clear button */
-    #btn-clear { border-color: rgba(255,68,85,.25); }
-    #btn-clear:hover { background: rgba(255,68,85,.08); color: var(--danger); border-color: var(--danger); }
+    #btn-clear:active {
+      background: rgba(255,100,80,.08);
+      border-color: rgba(255,100,80,.4);
+      color: #ff6450;
+    }
 
     /* ── STOP LIST ─────────────────────────────────────────── */
     #stops-wrap {
       flex: 1;
       overflow-y: auto;
-      padding: 4px 16px 12px;
+      overflow-x: hidden;
+      padding: 2px 16px 8px;
       -webkit-overflow-scrolling: touch;
     }
 
-    #stops-wrap::-webkit-scrollbar { width: 3px; }
-    #stops-wrap::-webkit-scrollbar-track { background: transparent; }
-    #stops-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    #stops-wrap::-webkit-scrollbar { display: none; }
 
     .stop-item {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 9px 0;
+      padding: 10px 0;
       border-bottom: 1px solid var(--border);
-      animation: fadeSlide .2s ease;
+      animation: slideUp .18s ease;
     }
     .stop-item:last-child { border-bottom: none; }
 
-    @keyframes fadeSlide {
-      from { opacity: 0; transform: translateY(6px); }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
     .stop-num {
-      width: 26px; height: 26px;
-      border-radius: 6px;
-      background: var(--accent);
-      color: #000;
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: var(--red);
+      color: #fff;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
-      transition: background .25s;
+      transition: background .2s;
     }
     .stop-num.pending {
-      background: var(--raised);
+      background: var(--raised2);
       border: 1px solid var(--border);
       color: var(--muted);
     }
 
-    .stop-label {
+    .stop-meta {
       flex: 1;
-      font-size: 13px;
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
+      min-width: 0;
     }
-    .stop-label strong {
+    .stop-meta strong {
       display: block;
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stop-meta span {
+      font-size: 12px;
+      color: var(--muted);
     }
 
     .stop-remove {
-      width: 28px; height: 28px;
-      border-radius: 6px;
+      width: 36px; height: 36px; /* bigger tap target on mobile */
+      border-radius: 8px;
       border: 1px solid transparent;
       background: none;
       color: var(--muted);
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: background .15s, color .15s, border-color .15s;
       flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s, border-color .15s;
     }
-    .stop-remove:hover {
-      background: rgba(255,68,85,.1);
-      border-color: rgba(255,68,85,.3);
-      color: var(--danger);
+    .stop-remove:active {
+      background: rgba(232,41,58,.12);
+      border-color: rgba(232,41,58,.3);
+      color: var(--red);
     }
 
+    /* Empty state */
     #empty-state {
-      padding: 20px 0;
       text-align: center;
+      padding: 16px 0 8px;
       color: var(--muted);
       font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.7;
     }
     #empty-state strong {
       display: block;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      letter-spacing: .05em;
+      font-size: 15px;
+      letter-spacing: .07em;
       text-transform: uppercase;
-      color: rgba(240,240,245,.3);
-      margin-bottom: 4px;
+      color: var(--raised2);
+      margin-bottom: 2px;
     }
 
-    /* ── NUMBERED MARKER ───────────────────────────────────── */
-    .rr-marker {
-      width: 30px; height: 36px;
+    /* ── CUSTOM MARKER ────────────────────────────────────── */
+    .rr-pin {
       position: relative;
-      display: flex; align-items: center; justify-content: center;
+      width: 30px;
+      height: 38px;
     }
-    .rr-marker-body {
+    .rr-pin-body {
       position: absolute;
       inset: 0;
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
-      box-shadow: 0 3px 10px rgba(0,0,0,.5);
+      box-shadow: 0 4px 14px rgba(0,0,0,.55);
     }
-    .rr-marker-num {
-      position: relative;
-      z-index: 1;
+    .rr-pin-num {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 4px;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
-      color: #000;
+      color: #fff;
       line-height: 1;
-      padding-top: 4px; /* optical center above teardrop tip */
+      z-index: 1;
     }
-    .rr-marker-star .rr-marker-num { font-size: 15px; }
   </style>
 </head>
 
@@ -346,25 +409,31 @@
 </div>
 
 <div id="panel">
+  <div id="drag-handle"></div>
 
   <div id="header">
-    <h1>Simple Route <span>Runner</span></h1>
-    <button id="btn-night" onclick="toggleNightMode()" title="Toggle night mode">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      </svg>
-    </button>
+    <div id="app-name">Simple <span>Route</span> Planner</div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-night" class="hdr-btn active" onclick="toggleNightMode()" title="Night mode">
+        <!-- Moon -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div id="input-row">
-    <input id="address" placeholder="Search address…"
-           onkeydown="if(event.key==='Enter')addStop()" autocomplete="off" />
+    <input id="address" type="text" inputmode="search"
+           placeholder="Search address…"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           onkeydown="if(event.key==='Enter'){this.blur();addStop()}" />
     <button id="btn-add" onclick="addStop()">Add</button>
   </div>
 
   <div id="action-row">
+    <!-- Tap map to add -->
     <button id="btn-pin" class="action-btn" onclick="togglePinMode()">
-      <!-- Pin icon -->
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
         <circle cx="12" cy="10" r="3"/>
@@ -372,18 +441,21 @@
       Tap Map
     </button>
 
+    <!-- Optimize -->
     <button id="btn-optimize" class="action-btn" onclick="optimizeRoute()">
-      <!-- Route icon -->
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
       Optimize
     </button>
 
+    <!-- Clear -->
     <button id="btn-clear" class="action-btn" onclick="clearAll()">
-      <!-- Trash icon -->
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14H6L5 6"/>
+        <path d="M10 11v6"/><path d="M14 11v6"/>
+        <path d="M9 6V4h6v2"/>
       </svg>
       Clear
     </button>
@@ -392,72 +464,74 @@
   <div id="stops-wrap">
     <div id="stops"></div>
     <div id="empty-state">
-      <strong>No stops yet</strong>
-      Search an address or tap the map to begin
+      <strong>No stops added</strong>
+      Search an address or tap the map
     </div>
   </div>
-
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+  // ── Init ─────────────────────────────────────────────────
+  const map = L.map("map", {
+    tap: false,
+    zoomControl: true,
+    attributionControl: true
+  }).setView([37.7749, -122.4194], 12);
 
-  let map = L.map("map", { tap: false, zoomControl: true })
-              .setView([37.7749, -122.4194], 12);
+  // Move zoom controls to bottom-right (thumb-friendly)
+  map.zoomControl.setPosition("bottomright");
 
   let start      = null;
   let stops      = [];
   let markers    = [];
   let routeOrder = [];
   let routeLine  = null;
-  let darkMode   = false;
+  let darkMode   = true;
   let pinMode    = false;
 
-  // ── Tiles ────────────────────────────────────────────────
+  // ── Tiles ─────────────────────────────────────────────────
   const lightTiles = L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom: 19 }
+    { maxZoom: 19, attribution: "© OpenStreetMap" }
   );
   const darkTiles = L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 19 }
+    { maxZoom: 19, attribution: "© OpenStreetMap © CARTO" }
   );
-  darkTiles.addTo(map); // start dark
-  darkMode = true;
-  document.body.style.background = "#0c0c10";
+  darkTiles.addTo(map);
 
-  // ── Marker factory ───────────────────────────────────────
-  function makeMarker(label, color, isStart) {
-    color = color || "#00d4ff";
-    const cls = isStart ? "rr-marker rr-marker-star" : "rr-marker";
+  // ── Marker factory ────────────────────────────────────────
+  function makePin(label, bg, textColor) {
+    bg        = bg        || "#e8293a";
+    textColor = textColor || "#fff";
     return L.divIcon({
       className: "",
-      html: `<div class="${cls}">
-               <div class="rr-marker-body" style="background:${color}"></div>
-               <div class="rr-marker-num">${label}</div>
+      html: `<div class="rr-pin">
+               <div class="rr-pin-body" style="background:${bg}"></div>
+               <div class="rr-pin-num" style="color:${textColor}">${label}</div>
              </div>`,
-      iconSize:    [30, 36],
-      iconAnchor:  [15, 36],
-      popupAnchor: [0, -38]
+      iconSize:    [30, 38],
+      iconAnchor:  [15, 38],
+      popupAnchor: [0, -40]
     });
   }
 
-  // ── Status pill ──────────────────────────────────────────
-  function showPill(text) {
+  // ── Status pill ───────────────────────────────────────────
+  function showPill(txt) {
     const p = document.getElementById("status-pill");
-    p.textContent = text;
+    p.textContent = txt;
     p.classList.add("show");
   }
   function hidePill() {
     document.getElementById("status-pill").classList.remove("show");
   }
 
-  // ── Pin mode ─────────────────────────────────────────────
+  // ── Pin mode ──────────────────────────────────────────────
   function togglePinMode() {
     pinMode = !pinMode;
     const btn   = document.getElementById("btn-pin");
     const mapEl = document.getElementById("map");
-
     if (pinMode) {
       btn.classList.add("active");
       mapEl.classList.add("pin-mode");
@@ -484,7 +558,7 @@
     optimizeRoute();
   });
 
-  // Desktop hold (non-pin mode)
+  // Desktop hold (non-pin mode only)
   let holdTimer = null;
   map.on("mousedown", e => {
     if (pinMode) return;
@@ -495,55 +569,63 @@
   });
   map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
-  // ── Geolocation ──────────────────────────────────────────
+  // ── Geolocation ───────────────────────────────────────────
   navigator.geolocation.getCurrentPosition(
     pos => {
       start = [pos.coords.latitude, pos.coords.longitude];
       map.setView(start, 14);
-      L.marker(start, { icon: makeMarker("●", "#ff9500", true) })
+      L.marker(start, { icon: makePin("●", "#ff9500", "#fff") })
         .addTo(map)
         .bindPopup("<b>You are here</b>");
     },
-    () => alert("Location access is required to build routes."),
+    () => alert("Location access is required to plan routes."),
     { enableHighAccuracy: true }
   );
 
-  // ── Geocoding ────────────────────────────────────────────
+  // ── Geocoding ─────────────────────────────────────────────
   async function geocode(address) {
-    if (!start) throw "No location";
+    if (!start) throw "No start";
     const [lat, lon] = start;
     const vb = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
+
     const r1 = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&viewbox=${vb}&bounded=1`,
+      `https://nominatim.openstreetmap.org/search?format=json` +
+      `&q=${encodeURIComponent(address)}&limit=1&viewbox=${vb}&bounded=1`,
       { headers: { Accept: "application/json" } }
     ).then(r => r.json());
-    if (r1.length) return [parseFloat(r1[0].lat), parseFloat(r1[0].lon)];
+    if (r1.length) return [+r1[0].lat, +r1[0].lon];
 
     const r2 = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+      `https://nominatim.openstreetmap.org/search?format=json` +
+      `&q=${encodeURIComponent(address)}&limit=1`
     ).then(r => r.json());
     if (!r2.length) throw "Not found";
-    return [parseFloat(r2[0].lat), parseFloat(r2[0].lon)];
+    return [+r2[0].lat, +r2[0].lon];
   }
 
-  // ── Add stop via input ────────────────────────────────────
+  // ── Add via address ───────────────────────────────────────
   async function addStop() {
     const input = document.getElementById("address");
-    const value = input.value.trim();
-    if (!value || !start) return;
-    const btn = document.getElementById("btn-add");
-    btn.textContent = "...";
-    btn.style.opacity = ".6";
+    const btn   = document.getElementById("btn-add");
+    const val   = input.value.trim();
+    if (!val || !start) return;
+
+    btn.textContent  = "...";
+    btn.style.opacity = ".55";
     try {
-      const coord = await geocode(value);
+      const coord = await geocode(val);
       pushStop(coord);
       input.value = "";
       optimizeRoute();
     } catch {
-      input.style.borderColor = "var(--danger)";
-      setTimeout(() => input.style.borderColor = "", 1200);
+      input.style.borderColor = "#e8293a";
+      input.style.background  = "rgba(232,41,58,.08)";
+      setTimeout(() => {
+        input.style.borderColor = "";
+        input.style.background  = "";
+      }, 1400);
     } finally {
-      btn.textContent = "Add";
+      btn.textContent   = "Add";
       btn.style.opacity = "";
     }
   }
@@ -551,13 +633,13 @@
   // ── Push stop ─────────────────────────────────────────────
   function pushStop(coord) {
     stops.push(coord);
-    const m = L.marker(coord, { icon: makeMarker("·", "#3a3a55") })
+    const m = L.marker(coord, { icon: makePin("·", "#3a1a1a", "#aaa") })
       .addTo(map)
       .bindPopup(`Stop ${stops.length}`);
     markers.push(m);
     routeOrder.push(0);
-    renderStops();
     document.getElementById("empty-state").style.display = "none";
+    renderStops();
   }
 
   // ── Remove stop ───────────────────────────────────────────
@@ -566,40 +648,42 @@
     markers.splice(i, 1);
     stops.splice(i, 1);
     routeOrder.splice(i, 1);
-    renderStops();
     if (stops.length === 0) {
       clearPolyline();
       document.getElementById("empty-state").style.display = "";
     } else {
       optimizeRoute();
     }
+    renderStops();
   }
 
-  // ── Render stop list ──────────────────────────────────────
+  // ── Render list ───────────────────────────────────────────
   function renderStops() {
-    const el = document.getElementById("stops");
-    el.innerHTML = stops.map((_, i) => {
+    document.getElementById("stops").innerHTML = stops.map((_, i) => {
       const n = routeOrder[i];
       const numCls = n ? "stop-num" : "stop-num pending";
-      const numLabel = n || "·";
       return `<div class="stop-item">
-        <div class="${numCls}">${numLabel}</div>
-        <div class="stop-label"><strong>Stop ${i + 1}</strong>Drop ${i + 1}</div>
-        <button class="stop-remove" onclick="removeStop(${i})" title="Remove">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        <div class="${numCls}">${n || "·"}</div>
+        <div class="stop-meta">
+          <strong>Stop ${i + 1}</strong>
+          <span>${n ? `Route position ${n}` : "Pending optimization"}</span>
+        </div>
+        <button class="stop-remove" onclick="removeStop(${i})" aria-label="Remove stop ${i+1}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
       </div>`;
     }).join("");
   }
 
-  // ── Clear polyline ─────────────────────────────────────────
+  // ── Clear polyline ────────────────────────────────────────
   function clearPolyline() {
     if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   }
 
-  // ── Clear all ──────────────────────────────────────────────
+  // ── Clear all ─────────────────────────────────────────────
   function clearAll() {
     clearPolyline();
     markers.forEach(m => map.removeLayer(m));
@@ -608,7 +692,7 @@
     document.getElementById("empty-state").style.display = "";
   }
 
-  // ── Optimize & number ──────────────────────────────────────
+  // ── Optimize ──────────────────────────────────────────────
   async function optimizeRoute() {
     if (!start || stops.length === 0) return;
     clearPolyline();
@@ -620,24 +704,29 @@
         `?source=first&roundtrip=false&geometries=geojson`
       ).then(r => r.json());
 
-      if (!data.trips) { alert("Route failed"); return; }
+      if (!data.trips) return;
 
-      const wpts = data.waypoints;
-      stops.forEach((_, i) => { routeOrder[i] = wpts[i + 1].waypoint_index; });
-
+      stops.forEach((_, i) => {
+        routeOrder[i] = data.waypoints[i + 1].waypoint_index;
+      });
       const min = Math.min(...routeOrder);
       routeOrder = routeOrder.map(p => p - min + 1);
 
-      markers.forEach((m, i) => m.setIcon(makeMarker(routeOrder[i], "#00d4ff")));
+      // Update marker icons
+      markers.forEach((m, i) => m.setIcon(makePin(routeOrder[i], "#e8293a", "#fff")));
       renderStops();
 
-      const route = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      routeLine = L.polyline(route, {
-        color: "#00d4ff",
-        weight: 4,
-        opacity: .85
+      // Draw route line
+      const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      routeLine = L.polyline(pts, {
+        color: "#e8293a",
+        weight: 4.5,
+        opacity: .9,
+        lineCap: "round",
+        lineJoin: "round"
       }).addTo(map);
-      map.fitBounds(routeLine.getBounds(), { padding: [24, 24] });
+
+      map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
 
     } catch (err) {
       console.error(err);
@@ -659,9 +748,11 @@
     if (stops.length > 0) optimizeRoute();
   }
 
-  // Start in dark mode, match toggle state
-  document.getElementById("btn-night").classList.add("active");
-
+  // ── Prevent scroll when touching map on mobile ────────────
+  document.getElementById("map").addEventListener("touchmove", e => {
+    if (!pinMode) return;
+    e.preventDefault();
+  }, { passive: false });
 </script>
 </body>
 </html>
