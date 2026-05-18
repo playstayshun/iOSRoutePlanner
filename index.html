@@ -37,7 +37,6 @@
 
     html {
       height: 100%;
-      /* Prevent iOS bounce scroll on the page itself */
       overflow: hidden;
       position: fixed;
       width: 100%;
@@ -67,7 +66,6 @@
       width: 100%;
     }
 
-    /* Leaflet overrides */
     .leaflet-control-attribution {
       background: rgba(0,0,0,.55) !important;
       color: rgba(255,255,255,.3) !important;
@@ -93,7 +91,6 @@
       color: var(--red) !important;
     }
 
-    /* Pin mode ring */
     #map.pin-mode { outline: 2.5px solid var(--red); outline-offset: -2px; }
 
     /* Floating status pill */
@@ -130,12 +127,10 @@
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      /* Safe area for phones with home indicator */
       padding-bottom: var(--safe-b);
       max-height: 52vh;
     }
 
-    /* Drag handle hint */
     #drag-handle {
       width: 36px; height: 4px;
       background: var(--raised2);
@@ -165,7 +160,6 @@
 
     #app-name span { color: var(--red); }
 
-    /* Header right — icon buttons */
     .hdr-btn {
       width: 38px; height: 38px;
       border-radius: 10px;
@@ -176,9 +170,30 @@
       color: var(--muted);
       transition: color .15s, background .15s, border-color .15s;
       -webkit-tap-highlight-color: transparent;
+      position: relative;
     }
     .hdr-btn:active { background: var(--raised2); color: var(--red); }
     .hdr-btn.active { color: var(--red); border-color: var(--border-r); background: var(--red-soft); }
+
+    /* Badge on saved-routes button */
+    .hdr-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      min-width: 16px; height: 16px;
+      background: var(--red);
+      color: #fff;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 0 4px;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0);
+      transition: opacity .2s, transform .2s;
+    }
+    .hdr-badge.show { opacity: 1; transform: scale(1); }
 
     /* ── INPUT ROW ────────────────────────────────────────── */
     #input-row {
@@ -197,7 +212,7 @@
       font-family: 'DM Sans', sans-serif;
       font-size: 15px;
       padding: 0 14px;
-      height: 48px; /* large touch target */
+      height: 48px;
       outline: none;
       transition: border-color .15s, background .15s;
       -webkit-appearance: none;
@@ -273,6 +288,16 @@
       color: #ff6450;
     }
 
+    #btn-save-route:active {
+      background: rgba(255,180,0,.08);
+      border-color: rgba(255,180,0,.4);
+      color: #ffb400;
+    }
+    #btn-save-route.has-stops {
+      color: var(--text);
+      border-color: rgba(255,180,0,.25);
+    }
+
     /* ── STOP LIST ─────────────────────────────────────────── */
     #stops-wrap {
       flex: 1;
@@ -336,7 +361,7 @@
     }
 
     .stop-remove {
-      width: 36px; height: 36px; /* bigger tap target on mobile */
+      width: 36px; height: 36px;
       border-radius: 8px;
       border: 1px solid transparent;
       background: none;
@@ -353,7 +378,6 @@
       color: var(--red);
     }
 
-    /* Empty state */
     #empty-state {
       text-align: center;
       padding: 16px 0 8px;
@@ -372,31 +396,336 @@
     }
 
     /* ── CUSTOM MARKER ────────────────────────────────────── */
-    .rr-pin {
-      position: relative;
-      width: 30px;
-      height: 38px;
-    }
+    .rr-pin { position: relative; width: 30px; height: 38px; }
     .rr-pin-body {
-      position: absolute;
-      inset: 0;
+      position: absolute; inset: 0;
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       box-shadow: 0 4px 14px rgba(0,0,0,.55);
     }
     .rr-pin-num {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       padding-bottom: 4px;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      color: #fff;
-      line-height: 1;
+      font-size: 14px; font-weight: 700; color: #fff; line-height: 1;
       z-index: 1;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       OVERLAY BACKDROP
+    ══════════════════════════════════════════════════════════ */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease;
+      backdrop-filter: blur(2px);
+    }
+    .sheet-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SAVE ROUTE MODAL
+    ══════════════════════════════════════════════════════════ */
+    #save-modal {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 1001;
+      background: var(--surface);
+      border-top: 1px solid var(--border-r);
+      border-radius: 20px 20px 0 0;
+      padding: 0 20px calc(20px + var(--safe-b));
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
+    }
+    #save-modal.open { transform: translateY(0); }
+
+    .modal-handle {
+      width: 36px; height: 4px;
+      background: var(--raised2);
+      border-radius: 2px;
+      margin: 14px auto 18px;
+    }
+
+    .modal-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .modal-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .modal-input {
+      width: 100%;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      padding: 0 14px;
+      height: 50px;
+      outline: none;
+      transition: border-color .15s, background .15s;
+      -webkit-appearance: none;
+      margin-bottom: 14px;
+    }
+    .modal-input::placeholder { color: var(--muted); }
+    .modal-input:focus {
+      border-color: var(--red);
+      background: var(--raised2);
+    }
+
+    .modal-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-btn-cancel {
+      flex: 1;
+      height: 50px;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, transform .1s;
+    }
+    .modal-btn-cancel:active { background: var(--raised2); transform: scale(.97); }
+
+    .modal-btn-confirm {
+      flex: 2;
+      height: 50px;
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, transform .1s;
+    }
+    .modal-btn-confirm:active { background: var(--red-dim); transform: scale(.97); }
+
+    /* ══════════════════════════════════════════════════════════
+       SAVED ROUTES DRAWER
+    ══════════════════════════════════════════════════════════ */
+    #routes-drawer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 1001;
+      background: var(--surface);
+      border-top: 1px solid var(--border-r);
+      border-radius: 20px 20px 0 0;
+      max-height: 82vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
+      padding-bottom: var(--safe-b);
+    }
+    #routes-drawer.open { transform: translateY(0); }
+
+    .drawer-handle {
+      width: 36px; height: 4px;
+      background: var(--raised2);
+      border-radius: 2px;
+      margin: 14px auto 0;
+      flex-shrink: 0;
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px 12px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .drawer-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .drawer-title span { color: var(--red); }
+
+    .drawer-close {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s;
+    }
+    .drawer-close:active { background: var(--raised2); color: var(--red); }
+
+    .drawer-list {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 8px 20px 12px;
+    }
+    .drawer-list::-webkit-scrollbar { display: none; }
+
+    /* Empty saved state */
+    .drawer-empty {
+      text-align: center;
+      padding: 32px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .drawer-empty strong {
+      display: block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--raised2);
+      margin-bottom: 4px;
+    }
+
+    /* Saved route card */
+    .route-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+      animation: slideUp .18s ease;
+    }
+    .route-card:last-child { border-bottom: none; }
+
+    .route-icon {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: var(--red-soft);
+      border: 1px solid var(--border-r);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      color: var(--red);
+    }
+
+    .route-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .route-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .route-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .route-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .route-btn {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--raised);
+      color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s, border-color .15s, transform .1s;
+    }
+    .route-btn:active { transform: scale(.93); }
+    .route-btn.load:active {
+      background: var(--red-soft);
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .route-btn.del:active {
+      background: rgba(255,100,80,.1);
+      border-color: rgba(255,100,80,.3);
+      color: #ff6450;
+    }
+
+    /* Confirm delete row */
+    .route-card.confirming .route-confirm {
+      display: flex;
+    }
+    .route-confirm {
+      display: none;
+      gap: 8px;
+      padding: 10px 0 4px;
+      align-items: center;
+    }
+    .route-confirm span {
+      flex: 1;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .route-confirm-yes {
+      padding: 6px 14px;
+      background: rgba(255,100,80,.12);
+      border: 1px solid rgba(255,100,80,.35);
+      border-radius: 8px;
+      color: #ff6450;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .route-confirm-no {
+      padding: 6px 14px;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
 </head>
@@ -414,8 +743,15 @@
   <div id="header">
     <div id="app-name">Simple <span>Route</span> Planner</div>
     <div style="display:flex;gap:8px">
+      <!-- Saved Routes -->
+      <button id="btn-routes" class="hdr-btn" onclick="openRoutesDrawer()" title="Saved routes">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span id="routes-badge" class="hdr-badge">0</span>
+      </button>
+      <!-- Night mode -->
       <button id="btn-night" class="hdr-btn active" onclick="toggleNightMode()" title="Night mode">
-        <!-- Moon -->
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
@@ -432,7 +768,6 @@
   </div>
 
   <div id="action-row">
-    <!-- Tap map to add -->
     <button id="btn-pin" class="action-btn" onclick="togglePinMode()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
@@ -441,7 +776,6 @@
       Tap Map
     </button>
 
-    <!-- Optimize -->
     <button id="btn-optimize" class="action-btn" onclick="optimizeRoute()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -449,7 +783,15 @@
       Optimize
     </button>
 
-    <!-- Clear -->
+    <button id="btn-save-route" class="action-btn" onclick="openSaveModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save
+    </button>
+
     <button id="btn-clear" class="action-btn" onclick="clearAll()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="3 6 5 6 21 6"/>
@@ -470,6 +812,40 @@
   </div>
 </div>
 
+<!-- ── BACKDROP ─────────────────────────────────────────────── -->
+<div id="backdrop" class="sheet-backdrop" onclick="closeAll()"></div>
+
+<!-- ── SAVE MODAL ──────────────────────────────────────────── -->
+<div id="save-modal">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Save Route</div>
+  <div class="modal-sub" id="save-modal-sub">Name this route to access it later</div>
+  <input id="route-name-input" class="modal-input" type="text" inputmode="text"
+         placeholder="e.g. Morning deliveries…"
+         autocomplete="off" autocorrect="off" spellcheck="false"
+         maxlength="48"
+         onkeydown="if(event.key==='Enter'){this.blur();confirmSaveRoute()}" />
+  <div class="modal-btns">
+    <button class="modal-btn-cancel" onclick="closeSaveModal()">Cancel</button>
+    <button class="modal-btn-confirm" onclick="confirmSaveRoute()">Save Route</button>
+  </div>
+</div>
+
+<!-- ── SAVED ROUTES DRAWER ─────────────────────────────────── -->
+<div id="routes-drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Saved <span>Routes</span></div>
+    <button class="drawer-close" onclick="closeRoutesDrawer()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="drawer-list" id="drawer-list"></div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   // ── Init ─────────────────────────────────────────────────
@@ -479,7 +855,6 @@
     attributionControl: true
   }).setView([37.7749, -122.4194], 12);
 
-  // Move zoom controls to bottom-right (thumb-friendly)
   map.zoomControl.setPosition("bottomright");
 
   let start      = null;
@@ -558,7 +933,6 @@
     optimizeRoute();
   });
 
-  // Desktop hold (non-pin mode only)
   let holdTimer = null;
   map.on("mousedown", e => {
     if (pinMode) return;
@@ -639,6 +1013,7 @@
     markers.push(m);
     routeOrder.push(0);
     document.getElementById("empty-state").style.display = "none";
+    updateSaveBtn();
     renderStops();
   }
 
@@ -654,6 +1029,7 @@
     } else {
       optimizeRoute();
     }
+    updateSaveBtn();
     renderStops();
   }
 
@@ -690,6 +1066,7 @@
     markers = []; stops = []; routeOrder = [];
     document.getElementById("stops").innerHTML = "";
     document.getElementById("empty-state").style.display = "";
+    updateSaveBtn();
   }
 
   // ── Optimize ──────────────────────────────────────────────
@@ -712,11 +1089,9 @@
       const min = Math.min(...routeOrder);
       routeOrder = routeOrder.map(p => p - min + 1);
 
-      // Update marker icons
       markers.forEach((m, i) => m.setIcon(makePin(routeOrder[i], "#e8293a", "#fff")));
       renderStops();
 
-      // Draw route line
       const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
       routeLine = L.polyline(pts, {
         color: "#e8293a",
@@ -748,7 +1123,213 @@
     if (stops.length > 0) optimizeRoute();
   }
 
-  // ── Prevent scroll when touching map on mobile ────────────
+  // ── Save btn state ────────────────────────────────────────
+  function updateSaveBtn() {
+    const btn = document.getElementById("btn-save-route");
+    btn.classList.toggle("has-stops", stops.length > 0);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SAVED ROUTES  —  localStorage persistence
+  // ══════════════════════════════════════════════════════════
+  const LS_KEY = "rr_saved_routes_v1";
+
+  function loadSavedRoutes() {
+    try {
+      return JSON.parse(localStorage.getItem(LS_KEY)) || [];
+    } catch { return []; }
+  }
+
+  function persistRoutes(routes) {
+    localStorage.setItem(LS_KEY, JSON.stringify(routes));
+  }
+
+  function refreshBadge() {
+    const routes = loadSavedRoutes();
+    const badge  = document.getElementById("routes-badge");
+    const count  = routes.length;
+    badge.textContent = count;
+    badge.classList.toggle("show", count > 0);
+  }
+
+  // ── Open Save Modal ───────────────────────────────────────
+  function openSaveModal() {
+    if (stops.length === 0) {
+      showPill("Add stops first");
+      setTimeout(hidePill, 1800);
+      return;
+    }
+    document.getElementById("save-modal-sub").textContent =
+      `${stops.length} stop${stops.length !== 1 ? "s" : ""} will be saved`;
+    const input = document.getElementById("route-name-input");
+    input.value = "";
+    document.getElementById("backdrop").classList.add("open");
+    document.getElementById("save-modal").classList.add("open");
+    // Slight delay so sheet animation completes before keyboard pops
+    setTimeout(() => input.focus(), 350);
+  }
+
+  function closeSaveModal() {
+    document.getElementById("backdrop").classList.remove("open");
+    document.getElementById("save-modal").classList.remove("open");
+    document.getElementById("route-name-input").blur();
+  }
+
+  function confirmSaveRoute() {
+    const input = document.getElementById("route-name-input");
+    const name  = input.value.trim();
+    if (!name) {
+      input.style.borderColor = "#e8293a";
+      input.style.background  = "rgba(232,41,58,.08)";
+      setTimeout(() => {
+        input.style.borderColor = "";
+        input.style.background  = "";
+      }, 1200);
+      return;
+    }
+
+    const routes = loadSavedRoutes();
+    routes.unshift({
+      id:        Date.now(),
+      name:      name,
+      stops:     JSON.parse(JSON.stringify(stops)),      // deep copy
+      savedAt:   new Date().toISOString()
+    });
+    persistRoutes(routes);
+    refreshBadge();
+    closeSaveModal();
+
+    showPill("Route saved ✓");
+    setTimeout(hidePill, 1800);
+  }
+
+  // ── Open Routes Drawer ────────────────────────────────────
+  function openRoutesDrawer() {
+    renderDrawerList();
+    document.getElementById("backdrop").classList.add("open");
+    document.getElementById("routes-drawer").classList.add("open");
+  }
+
+  function closeRoutesDrawer() {
+    document.getElementById("backdrop").classList.remove("open");
+    document.getElementById("routes-drawer").classList.remove("open");
+  }
+
+  function closeAll() {
+    closeSaveModal();
+    closeRoutesDrawer();
+  }
+
+  // ── Render drawer list ────────────────────────────────────
+  function renderDrawerList() {
+    const routes  = loadSavedRoutes();
+    const listEl  = document.getElementById("drawer-list");
+
+    if (routes.length === 0) {
+      listEl.innerHTML = `<div class="drawer-empty">
+        <strong>No saved routes</strong>
+        Build a route and tap Save
+      </div>`;
+      return;
+    }
+
+    listEl.innerHTML = routes.map(r => {
+      const d    = new Date(r.savedAt);
+      const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      const cnt  = r.stops.length;
+      return `<div class="route-card" id="rc-${r.id}">
+        <div class="route-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="route-info">
+          <div class="route-name">${escHtml(r.name)}</div>
+          <div class="route-meta">${cnt} stop${cnt !== 1 ? "s" : ""} · ${date}</div>
+        </div>
+        <div class="route-actions">
+          <button class="route-btn load" onclick="loadRoute(${r.id})" title="Load route">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
+            </svg>
+          </button>
+          <button class="route-btn del" onclick="askDeleteRoute(${r.id})" title="Delete route">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // ── Load a route onto the map ─────────────────────────────
+  function loadRoute(id) {
+    const routes = loadSavedRoutes();
+    const route  = routes.find(r => r.id === id);
+    if (!route) return;
+
+    clearAll();
+    route.stops.forEach(coord => pushStop(coord));
+    optimizeRoute();
+    closeRoutesDrawer();
+
+    showPill(`Loaded: ${route.name}`);
+    setTimeout(hidePill, 2000);
+  }
+
+  // ── Delete with confirm ───────────────────────────────────
+  function askDeleteRoute(id) {
+    // Close any other confirms
+    document.querySelectorAll(".route-card.confirming").forEach(el => {
+      el.classList.remove("confirming");
+      const conf = el.querySelector(".route-confirm");
+      if (conf) conf.remove();
+    });
+
+    const card = document.getElementById(`rc-${id}`);
+    if (!card) return;
+    card.classList.add("confirming");
+
+    const conf = document.createElement("div");
+    conf.className = "route-confirm";
+    conf.innerHTML = `
+      <span>Delete this route?</span>
+      <button class="route-confirm-no" onclick="cancelDelete(${id})">Keep</button>
+      <button class="route-confirm-yes" onclick="confirmDelete(${id})">Delete</button>
+    `;
+    card.appendChild(conf);
+  }
+
+  function cancelDelete(id) {
+    const card = document.getElementById(`rc-${id}`);
+    if (!card) return;
+    card.classList.remove("confirming");
+    const conf = card.querySelector(".route-confirm");
+    if (conf) conf.remove();
+  }
+
+  function confirmDelete(id) {
+    let routes = loadSavedRoutes();
+    routes = routes.filter(r => r.id !== id);
+    persistRoutes(routes);
+    refreshBadge();
+    renderDrawerList();
+  }
+
+  // ── Init badge on load ────────────────────────────────────
+  refreshBadge();
+
+  // ── Prevent scroll in pin mode ────────────────────────────
   document.getElementById("map").addEventListener("touchmove", e => {
     if (!pinMode) return;
     e.preventDefault();
