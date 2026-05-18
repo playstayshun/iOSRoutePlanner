@@ -3,158 +3,407 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Simple Route Runner</title>
-
+  <title>Route Runner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     :root {
-      --blue:#007aff;
-      --bg:#f2f2f7;
-      --card:#ffffff;
-      --text:#1c1c1e;
-      --sub:#6c6c70;
-      --danger:#ff3b30;
-      --green:#34c759;
+      --bg:      #0c0c10;
+      --surface: #13131a;
+      --raised:  #1c1c26;
+      --border:  rgba(255,255,255,.07);
+      --text:    #f0f0f5;
+      --muted:   #5a5a72;
+      --accent:  #00d4ff;
+      --accent2: #0095b3;
+      --danger:  #ff4455;
+      --go:      #00e07a;
+      --go2:     #00a858;
+      --radius:  10px;
     }
 
-    body.dark {
-      --bg:#0f0f14;
-      --card:#1c1c1e;
-      --text:#f2f2f7;
-      --sub:#a1a1a6;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
     }
 
-    *{box-sizing:border-box}
-    html,body{
-      margin:0;height:100%;
-      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;
-      background:var(--bg);color:var(--text);
+    /* ── MAP ──────────────────────────────────────────────── */
+    #map-wrap {
+      position: relative;
+      height: 52vh;
     }
 
-    #map{height:55vh;transition:outline .15s}
-    #map.pin-mode{
-      outline:4px solid var(--green);
-      cursor:crosshair;
+    #map {
+      height: 100%;
+      width: 100%;
     }
 
-    #panel{padding:14px}
+    /* Leaflet attribution cleanup */
+    .leaflet-control-attribution {
+      background: rgba(0,0,0,.5) !important;
+      color: rgba(255,255,255,.35) !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: rgba(255,255,255,.4) !important; }
 
-    .card{
-      background:var(--card);
-      border-radius:16px;
-      padding:14px;
-      box-shadow:0 8px 24px rgba(0,0,0,.15)
+    /* Pin-mode ring */
+    #map.pin-mode { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    /* Status pill that floats on the map */
+    #status-pill {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      z-index: 1000;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .2s, transform .2s;
+      white-space: nowrap;
+    }
+    #status-pill.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
-    h1{margin:0 0 6px;font-size:20px}
-    .subtitle{color:var(--sub);font-size:14px;margin-bottom:12px}
-
-    input,button{
-      width:100%;padding:14px;font-size:16px;
-      border-radius:14px;border:none;margin-bottom:10px
+    /* ── PANEL ─────────────────────────────────────────────── */
+    #panel {
+      height: 48vh;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
-    input{border:1px solid #ccc}
-
-    button{background:var(--blue);color:white;font-weight:600;cursor:pointer}
-    button.secondary{background:var(--green)}
-    button.danger{background:var(--danger)}
-    button.ghost{background:none;color:var(--text);border:1px solid #ccc}
-    button.pin-active{
-      background:var(--green);color:#fff;
-      box-shadow:0 0 0 3px rgba(52,199,89,.35);
-    }
-    button:active{transform:scale(.97)}
-
-    .stop{
-      display:flex;align-items:center;gap:10px;
-      padding:10px 0;border-bottom:1px solid #eee
-    }
-    .stop:last-child{border-bottom:none}
-
-    .stop-badge{
-      min-width:28px;height:28px;
-      border-radius:50%;
-      background:var(--blue);
-      color:#fff;
-      font-size:13px;font-weight:700;
-      display:flex;align-items:center;justify-content:center;
-      flex-shrink:0;
-    }
-    .stop-label{flex:1;font-size:15px}
-    .remove{
-      background:none;border:none;color:var(--danger);
-      font-size:18px;padding:0;width:auto;margin:0;cursor:pointer;
+    /* Header bar */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
-    #pin-banner{
-      display:none;
-      position:absolute;
-      top:10px;left:50%;transform:translateX(-50%);
-      z-index:1000;
-      background:var(--green);
-      color:#fff;
-      font-size:14px;font-weight:600;
-      padding:8px 20px;
-      border-radius:999px;
-      pointer-events:none;
-      white-space:nowrap;
-      box-shadow:0 4px 14px rgba(0,0,0,.3);
+    #header h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text);
     }
-    #pin-banner.visible{display:block}
 
-    .num-marker{
-      width:32px;height:32px;
-      border-radius:50% 50% 50% 0;
-      transform:rotate(-45deg);
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 2px 8px rgba(0,0,0,.35);
+    #header h1 span {
+      color: var(--accent);
     }
-    .num-marker span{
-      transform:rotate(45deg);
-      font-size:13px;font-weight:700;
-      color:#fff;
-      font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+
+    /* Night-mode toggle — icon button top-right */
+    #btn-night {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      transition: color .15s, background .15s;
+      flex-shrink: 0;
     }
+    #btn-night:hover, #btn-night.active { color: var(--accent); background: rgba(0,212,255,.08); }
+
+    /* Input row */
+    #input-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #address {
+      flex: 1;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 0 12px;
+      height: 40px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #address::placeholder { color: var(--muted); }
+    #address:focus { border-color: var(--accent); }
+
+    #btn-add {
+      height: 40px;
+      padding: 0 16px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s, transform .1s;
+    }
+    #btn-add:active { transform: scale(.96); background: var(--accent2); }
+
+    /* Action row */
+    #action-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .action-btn {
+      flex: 1;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--raised);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: background .15s, border-color .15s, color .15s, transform .1s;
+    }
+    .action-btn:active { transform: scale(.96); }
+
+    .action-btn svg { flex-shrink: 0; }
+
+    /* Pin mode button */
+    #btn-pin { border-color: rgba(0,212,255,.25); }
+    #btn-pin:hover { background: rgba(0,212,255,.08); color: var(--accent); border-color: var(--accent); }
+    #btn-pin.active {
+      background: rgba(0,212,255,.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Optimize button */
+    #btn-optimize { border-color: rgba(0,224,122,.25); }
+    #btn-optimize:hover { background: rgba(0,224,122,.08); color: var(--go); border-color: var(--go); }
+
+    /* Clear button */
+    #btn-clear { border-color: rgba(255,68,85,.25); }
+    #btn-clear:hover { background: rgba(255,68,85,.08); color: var(--danger); border-color: var(--danger); }
+
+    /* ── STOP LIST ─────────────────────────────────────────── */
+    #stops-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 16px 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #stops-wrap::-webkit-scrollbar { width: 3px; }
+    #stops-wrap::-webkit-scrollbar-track { background: transparent; }
+    #stops-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .stop-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      animation: fadeSlide .2s ease;
+    }
+    .stop-item:last-child { border-bottom: none; }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .stop-num {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background .25s;
+    }
+    .stop-num.pending {
+      background: var(--raised);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .stop-label {
+      flex: 1;
+      font-size: 13px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .stop-label strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .stop-remove {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+    .stop-remove:hover {
+      background: rgba(255,68,85,.1);
+      border-color: rgba(255,68,85,.3);
+      color: var(--danger);
+    }
+
+    #empty-state {
+      padding: 20px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    #empty-state strong {
+      display: block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: rgba(240,240,245,.3);
+      margin-bottom: 4px;
+    }
+
+    /* ── NUMBERED MARKER ───────────────────────────────────── */
+    .rr-marker {
+      width: 30px; height: 36px;
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rr-marker-body {
+      position: absolute;
+      inset: 0;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 3px 10px rgba(0,0,0,.5);
+    }
+    .rr-marker-num {
+      position: relative;
+      z-index: 1;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #000;
+      line-height: 1;
+      padding-top: 4px; /* optical center above teardrop tip */
+    }
+    .rr-marker-star .rr-marker-num { font-size: 15px; }
   </style>
 </head>
 
 <body>
 
-<div style="position:relative">
-  <div id="pin-banner">📍 Tap anywhere on map to drop a stop</div>
+<div id="map-wrap">
+  <div id="status-pill">Tap map to place stop</div>
   <div id="map"></div>
 </div>
 
 <div id="panel">
-  <div class="card">
-    <h1>Simple Route Planner</h1>
-    <div class="subtitle">Fast multi-stop routing, free and no logging in :)</div>
 
-    <label for="address" style="position:absolute;left:-9999px;">Stop address</label>
-    <input id="address" placeholder="Add a stop address"
-           onkeydown="if(event.key==='Enter')addStop()" />
-    <button onclick="addStop()">Add Stop</button>
+  <div id="header">
+    <h1>Simple Route <span>Runner</span></h1>
+    <button id="btn-night" onclick="toggleNightMode()" title="Toggle night mode">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </div>
 
-    <button id="pinBtn" class="ghost" onclick="togglePinMode()">
-      📍 Tap Map to Add Stop
+  <div id="input-row">
+    <input id="address" placeholder="Search address…"
+           onkeydown="if(event.key==='Enter')addStop()" autocomplete="off" />
+    <button id="btn-add" onclick="addStop()">Add</button>
+  </div>
+
+  <div id="action-row">
+    <button id="btn-pin" class="action-btn" onclick="togglePinMode()">
+      <!-- Pin icon -->
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+      Tap Map
     </button>
 
-    <button class="secondary" onclick="optimizeRoute()">Optimize Route</button>
-    <button class="danger" onclick="clearAll()">Clear Route</button>
-    <button class="ghost" onclick="toggleNightMode()">🌙 Night Mode</button>
+    <button id="btn-optimize" class="action-btn" onclick="optimizeRoute()">
+      <!-- Route icon -->
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      Optimize
+    </button>
 
-    <div id="stops"></div>
+    <button id="btn-clear" class="action-btn" onclick="clearAll()">
+      <!-- Trash icon -->
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+      </svg>
+      Clear
+    </button>
   </div>
+
+  <div id="stops-wrap">
+    <div id="stops"></div>
+    <div id="empty-state">
+      <strong>No stops yet</strong>
+      Search an address or tap the map to begin
+    </div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 
-  // tap:false tells Leaflet NOT to synthesise click events from touches itself
-  // — we handle map clicks natively so they fire reliably on iOS/Android
-  let map = L.map("map", { tap: false }).setView([37.7749, -122.4194], 12);
+  let map = L.map("map", { tap: false, zoomControl: true })
+              .setView([37.7749, -122.4194], 12);
 
   let start      = null;
   let stops      = [];
@@ -164,55 +413,63 @@
   let darkMode   = false;
   let pinMode    = false;
 
-  // ── Tile layers ──────────────────────────────────────────
+  // ── Tiles ────────────────────────────────────────────────
   const lightTiles = L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom:19 }
+    { maxZoom: 19 }
   );
   const darkTiles = L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { maxZoom:19 }
+    { maxZoom: 19 }
   );
-  lightTiles.addTo(map);
+  darkTiles.addTo(map); // start dark
+  darkMode = true;
+  document.body.style.background = "#0c0c10";
 
-  // ── Numbered marker factory ──────────────────────────────
-  function makeNumberIcon(n, color) {
-    color = color || "#007aff";
+  // ── Marker factory ───────────────────────────────────────
+  function makeMarker(label, color, isStart) {
+    color = color || "#00d4ff";
+    const cls = isStart ? "rr-marker rr-marker-star" : "rr-marker";
     return L.divIcon({
       className: "",
-      html: `<div class="num-marker" style="background:${color}">
-               <span>${n}</span>
+      html: `<div class="${cls}">
+               <div class="rr-marker-body" style="background:${color}"></div>
+               <div class="rr-marker-num">${label}</div>
              </div>`,
-      iconSize:    [32, 32],
-      iconAnchor:  [16, 32],
-      popupAnchor: [0, -34]
+      iconSize:    [30, 36],
+      iconAnchor:  [15, 36],
+      popupAnchor: [0, -38]
     });
   }
 
-  // ── Drop-pin mode ────────────────────────────────────────
+  // ── Status pill ──────────────────────────────────────────
+  function showPill(text) {
+    const p = document.getElementById("status-pill");
+    p.textContent = text;
+    p.classList.add("show");
+  }
+  function hidePill() {
+    document.getElementById("status-pill").classList.remove("show");
+  }
+
+  // ── Pin mode ─────────────────────────────────────────────
   function togglePinMode() {
     pinMode = !pinMode;
-    const btn    = document.getElementById("pinBtn");
-    const banner = document.getElementById("pin-banner");
-    const mapEl  = document.getElementById("map");
+    const btn   = document.getElementById("btn-pin");
+    const mapEl = document.getElementById("map");
 
     if (pinMode) {
-      btn.textContent = "✅ Tap Map Mode (ON — tap to exit)";
-      btn.classList.add("pin-active");
-      btn.classList.remove("ghost");
-      banner.classList.add("visible");
+      btn.classList.add("active");
       mapEl.classList.add("pin-mode");
-      // Disable dragging so every touch = a tap, not a pan
+      showPill("Tap map to place stop");
       map.dragging.disable();
       map.touchZoom.disable();
       map.doubleClickZoom.disable();
       map.scrollWheelZoom.disable();
     } else {
-      btn.textContent = "📍 Tap Map to Add Stop";
-      btn.classList.remove("pin-active");
-      btn.classList.add("ghost");
-      banner.classList.remove("visible");
+      btn.classList.remove("active");
       mapEl.classList.remove("pin-mode");
+      hidePill();
       map.dragging.enable();
       map.touchZoom.enable();
       map.doubleClickZoom.enable();
@@ -220,23 +477,21 @@
     }
   }
 
-  // ── Map click — works on iOS, Android, and desktop ───────
   map.on("click", e => {
     if (!pinMode) return;
-    if (navigator.vibrate) navigator.vibrate(30);
+    if (navigator.vibrate) navigator.vibrate(25);
     pushStop([e.latlng.lat, e.latlng.lng]);
     optimizeRoute();
   });
 
-  // ── Desktop hold-to-drop (still works when NOT in pin mode)
+  // Desktop hold (non-pin mode)
   let holdTimer = null;
-  const HOLD_DELAY = 500;
   map.on("mousedown", e => {
     if (pinMode) return;
     holdTimer = setTimeout(() => {
       pushStop([e.latlng.lat, e.latlng.lng]);
       optimizeRoute();
-    }, HOLD_DELAY);
+    }, 500);
   });
   map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
@@ -245,12 +500,11 @@
     pos => {
       start = [pos.coords.latitude, pos.coords.longitude];
       map.setView(start, 14);
-      L.marker(start, { icon: makeNumberIcon("★", "#ff9500") })
+      L.marker(start, { icon: makeMarker("●", "#ff9500", true) })
         .addTo(map)
-        .bindPopup("You are here")
-        .openPopup();
+        .bindPopup("<b>You are here</b>");
     },
-    () => alert("Location required to build routes."),
+    () => alert("Location access is required to build routes."),
     { enableHighAccuracy: true }
   );
 
@@ -258,135 +512,155 @@
   async function geocode(address) {
     if (!start) throw "No location";
     const [lat, lon] = start;
-    const viewbox = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
-    const data = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json` +
-      `&q=${encodeURIComponent(address)}&limit=1&viewbox=${viewbox}&bounded=1`,
-      { headers:{"Accept":"application/json"} }
+    const vb = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
+    const r1 = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&viewbox=${vb}&bounded=1`,
+      { headers: { Accept: "application/json" } }
     ).then(r => r.json());
+    if (r1.length) return [parseFloat(r1[0].lat), parseFloat(r1[0].lon)];
 
-    if (!data.length) {
-      const fb = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json` +
-        `&q=${encodeURIComponent(address)}&limit=1`
-      ).then(r => r.json());
-      if (!fb.length) throw "Not found";
-      return [parseFloat(fb[0].lat), parseFloat(fb[0].lon)];
-    }
-    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    const r2 = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+    ).then(r => r.json());
+    if (!r2.length) throw "Not found";
+    return [parseFloat(r2[0].lat), parseFloat(r2[0].lon)];
   }
 
-  // ── Add stop via address input ────────────────────────────
+  // ── Add stop via input ────────────────────────────────────
   async function addStop() {
     const input = document.getElementById("address");
     const value = input.value.trim();
     if (!value || !start) return;
+    const btn = document.getElementById("btn-add");
+    btn.textContent = "...";
+    btn.style.opacity = ".6";
     try {
       const coord = await geocode(value);
       pushStop(coord);
       input.value = "";
       optimizeRoute();
     } catch {
-      alert("Address not found");
+      input.style.borderColor = "var(--danger)";
+      setTimeout(() => input.style.borderColor = "", 1200);
+    } finally {
+      btn.textContent = "Add";
+      btn.style.opacity = "";
     }
   }
 
-  // ── Register a new stop ───────────────────────────────────
+  // ── Push stop ─────────────────────────────────────────────
   function pushStop(coord) {
     stops.push(coord);
-    const m = L.marker(coord, { icon: makeNumberIcon("?", "#8e8e93") })
+    const m = L.marker(coord, { icon: makeMarker("·", "#3a3a55") })
       .addTo(map)
       .bindPopup(`Stop ${stops.length}`);
     markers.push(m);
     routeOrder.push(0);
     renderStops();
+    document.getElementById("empty-state").style.display = "none";
   }
 
-  // ── Remove a stop ─────────────────────────────────────────
-  function removeStop(index) {
-    map.removeLayer(markers[index]);
-    markers.splice(index, 1);
-    stops.splice(index, 1);
-    routeOrder.splice(index, 1);
+  // ── Remove stop ───────────────────────────────────────────
+  function removeStop(i) {
+    map.removeLayer(markers[i]);
+    markers.splice(i, 1);
+    stops.splice(i, 1);
+    routeOrder.splice(i, 1);
     renderStops();
-    if (stops.length === 0) clearPolyline();
-    else optimizeRoute();
+    if (stops.length === 0) {
+      clearPolyline();
+      document.getElementById("empty-state").style.display = "";
+    } else {
+      optimizeRoute();
+    }
   }
 
   // ── Render stop list ──────────────────────────────────────
   function renderStops() {
-    document.getElementById("stops").innerHTML = stops
-      .map((_, i) => {
-        const badge = routeOrder[i] || "?";
-        return `<div class="stop">
-          <div class="stop-badge">${badge}</div>
-          <span class="stop-label">Stop ${i + 1}</span>
-          <button class="remove" onclick="removeStop(${i})">✕</button>
-        </div>`;
-      }).join("");
+    const el = document.getElementById("stops");
+    el.innerHTML = stops.map((_, i) => {
+      const n = routeOrder[i];
+      const numCls = n ? "stop-num" : "stop-num pending";
+      const numLabel = n || "·";
+      return `<div class="stop-item">
+        <div class="${numCls}">${numLabel}</div>
+        <div class="stop-label"><strong>Stop ${i + 1}</strong>Drop ${i + 1}</div>
+        <button class="stop-remove" onclick="removeStop(${i})" title="Remove">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
+    }).join("");
   }
 
-  // ── Clear polyline without touching stops ─────────────────
+  // ── Clear polyline ─────────────────────────────────────────
   function clearPolyline() {
     if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   }
 
-  // ── Clear everything ──────────────────────────────────────
+  // ── Clear all ──────────────────────────────────────────────
   function clearAll() {
     clearPolyline();
     markers.forEach(m => map.removeLayer(m));
-    markers    = [];
-    stops      = [];
-    routeOrder = [];
-    renderStops();
+    markers = []; stops = []; routeOrder = [];
+    document.getElementById("stops").innerHTML = "";
+    document.getElementById("empty-state").style.display = "";
   }
 
-  // ── Optimize route & update numbered markers ──────────────
+  // ── Optimize & number ──────────────────────────────────────
   async function optimizeRoute() {
     if (!start || stops.length === 0) return;
     clearPolyline();
 
     const coords = [start, ...stops].map(c => `${c[1]},${c[0]}`).join(";");
-    const url =
-      `https://router.project-osrm.org/trip/v1/driving/${coords}` +
-      `?source=first&roundtrip=false&geometries=geojson`;
-
     try {
-      const data = await fetch(url).then(r => r.json());
+      const data = await fetch(
+        `https://router.project-osrm.org/trip/v1/driving/${coords}` +
+        `?source=first&roundtrip=false&geometries=geojson`
+      ).then(r => r.json());
+
       if (!data.trips) { alert("Route failed"); return; }
 
-      // waypoints[i+1].waypoint_index = optimized trip position for stops[i]
-      const waypoints = data.waypoints;
-      stops.forEach((_, i) => {
-        routeOrder[i] = waypoints[i + 1].waypoint_index;
-      });
+      const wpts = data.waypoints;
+      stops.forEach((_, i) => { routeOrder[i] = wpts[i + 1].waypoint_index; });
 
-      // Rebase so the first stop is 1
-      const minPos = Math.min(...routeOrder);
-      routeOrder = routeOrder.map(p => p - minPos + 1);
+      const min = Math.min(...routeOrder);
+      routeOrder = routeOrder.map(p => p - min + 1);
 
-      const color = darkMode ? "#0a84ff" : "#007aff";
-      markers.forEach((m, i) => m.setIcon(makeNumberIcon(routeOrder[i], color)));
+      markers.forEach((m, i) => m.setIcon(makeMarker(routeOrder[i], "#00d4ff")));
       renderStops();
 
       const route = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      routeLine = L.polyline(route, { color, weight:5 }).addTo(map);
-      map.fitBounds(routeLine.getBounds(), { padding:[20,20] });
+      routeLine = L.polyline(route, {
+        color: "#00d4ff",
+        weight: 4,
+        opacity: .85
+      }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [24, 24] });
 
     } catch (err) {
       console.error(err);
-      alert("Route failed");
     }
   }
 
   // ── Night mode ────────────────────────────────────────────
   function toggleNightMode() {
     darkMode = !darkMode;
-    document.body.classList.toggle("dark", darkMode);
-    if (darkMode) { map.removeLayer(lightTiles); darkTiles.addTo(map); }
-    else          { map.removeLayer(darkTiles);  lightTiles.addTo(map); }
+    const btn = document.getElementById("btn-night");
+    btn.classList.toggle("active", darkMode);
+    if (darkMode) {
+      map.removeLayer(lightTiles);
+      darkTiles.addTo(map);
+    } else {
+      map.removeLayer(darkTiles);
+      lightTiles.addTo(map);
+    }
     if (stops.length > 0) optimizeRoute();
   }
+
+  // Start in dark mode, match toggle state
+  document.getElementById("btn-night").classList.add("active");
 
 </script>
 </body>
