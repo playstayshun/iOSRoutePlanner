@@ -15,6 +15,7 @@
       --text:#1c1c1e;
       --sub:#6c6c70;
       --danger:#ff3b30;
+      --green:#34c759;
     }
 
     body.dark {
@@ -31,7 +32,12 @@
       background:var(--bg);color:var(--text);
     }
 
-    #map{height:55vh}
+    #map{height:55vh;transition:outline .15s}
+    #map.pin-mode{
+      outline:4px solid var(--green);
+      cursor:crosshair;
+    }
+
     #panel{padding:14px}
 
     .card{
@@ -51,11 +57,13 @@
 
     input{border:1px solid #ccc}
 
-    button{background:var(--blue);color:white;font-weight:600}
-    button.secondary{background:#34c759}
+    button{background:var(--blue);color:white;font-weight:600;cursor:pointer}
+    button.secondary{background:var(--green)}
     button.danger{background:var(--danger)}
-    button.ghost{
-      background:none;color:var(--text);border:1px solid #ccc
+    button.ghost{background:none;color:var(--text);border:1px solid #ccc}
+    button.pin-active{
+      background:var(--green);color:#fff;
+      box-shadow:0 0 0 3px rgba(52,199,89,.35);
     }
     button:active{transform:scale(.97)}
 
@@ -65,7 +73,6 @@
     }
     .stop:last-child{border-bottom:none}
 
-    /* The route-order badge shown in the stop list */
     .stop-badge{
       min-width:28px;height:28px;
       border-radius:50%;
@@ -78,10 +85,25 @@
     .stop-label{flex:1;font-size:15px}
     .remove{
       background:none;border:none;color:var(--danger);
-      font-size:18px;padding:0;width:auto;margin:0;
+      font-size:18px;padding:0;width:auto;margin:0;cursor:pointer;
     }
 
-    /* Custom numbered marker styles */
+    #pin-banner{
+      display:none;
+      position:absolute;
+      top:10px;left:50%;transform:translateX(-50%);
+      z-index:1000;
+      background:var(--green);
+      color:#fff;
+      font-size:14px;font-weight:600;
+      padding:8px 20px;
+      border-radius:999px;
+      pointer-events:none;
+      white-space:nowrap;
+      box-shadow:0 4px 14px rgba(0,0,0,.3);
+    }
+    #pin-banner.visible{display:block}
+
     .num-marker{
       width:32px;height:32px;
       border-radius:50% 50% 50% 0;
@@ -100,7 +122,10 @@
 
 <body>
 
-<div id="map"></div>
+<div style="position:relative">
+  <div id="pin-banner">📍 Tap anywhere on map to drop a stop</div>
+  <div id="map"></div>
+</div>
 
 <div id="panel">
   <div class="card">
@@ -108,10 +133,16 @@
     <div class="subtitle">Fast multi-stop routing, free and no logging in :)</div>
 
     <label for="address" style="position:absolute;left:-9999px;">Stop address</label>
-    <input id="address" placeholder="Add a stop address" />
+    <input id="address" placeholder="Add a stop address"
+           onkeydown="if(event.key==='Enter')addStop()" />
     <button onclick="addStop()">Add Stop</button>
+
+    <button id="pinBtn" class="ghost" onclick="togglePinMode()">
+      📍 Tap Map to Add Stop
+    </button>
+
     <button class="secondary" onclick="optimizeRoute()">Optimize Route</button>
-    <button class="danger" onclick="clearRoute()">Clear Route</button>
+    <button class="danger" onclick="clearAll()">Clear Route</button>
     <button class="ghost" onclick="toggleNightMode()">🌙 Night Mode</button>
 
     <div id="stops"></div>
@@ -121,26 +152,30 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 
-  let map = L.map("map").setView([37.7749, -122.4194], 12);
-  let start = null;
-  let stops = [];       // coords in user-added order
-  let markers = [];     // one Leaflet marker per stop (same index as stops[])
-  let routeOrder = [];  // routeOrder[i] = route position (1-based) for stops[i]
-  let routeLine = null;
-  let darkMode = false;
+  // tap:false tells Leaflet NOT to synthesise click events from touches itself
+  // — we handle map clicks natively so they fire reliably on iOS/Android
+  let map = L.map("map", { tap: false }).setView([37.7749, -122.4194], 12);
+
+  let start      = null;
+  let stops      = [];
+  let markers    = [];
+  let routeOrder = [];
+  let routeLine  = null;
+  let darkMode   = false;
+  let pinMode    = false;
 
   // ── Tile layers ──────────────────────────────────────────
   const lightTiles = L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom: 19 }
+    { maxZoom:19 }
   );
   const darkTiles = L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 19 }
+    { maxZoom:19 }
   );
   lightTiles.addTo(map);
 
-  // ── Numbered divIcon factory ─────────────────────────────
+  // ── Numbered marker factory ──────────────────────────────
   function makeNumberIcon(n, color) {
     color = color || "#007aff";
     return L.divIcon({
@@ -148,26 +183,60 @@
       html: `<div class="num-marker" style="background:${color}">
                <span>${n}</span>
              </div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],   // tip of the teardrop
+      iconSize:    [32, 32],
+      iconAnchor:  [16, 32],
       popupAnchor: [0, -34]
     });
   }
 
-  // ── Long-press to drop a stop ────────────────────────────
+  // ── Drop-pin mode ────────────────────────────────────────
+  function togglePinMode() {
+    pinMode = !pinMode;
+    const btn    = document.getElementById("pinBtn");
+    const banner = document.getElementById("pin-banner");
+    const mapEl  = document.getElementById("map");
+
+    if (pinMode) {
+      btn.textContent = "✅ Tap Map Mode (ON — tap to exit)";
+      btn.classList.add("pin-active");
+      btn.classList.remove("ghost");
+      banner.classList.add("visible");
+      mapEl.classList.add("pin-mode");
+      // Disable dragging so every touch = a tap, not a pan
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+    } else {
+      btn.textContent = "📍 Tap Map to Add Stop";
+      btn.classList.remove("pin-active");
+      btn.classList.add("ghost");
+      banner.classList.remove("visible");
+      mapEl.classList.remove("pin-mode");
+      map.dragging.enable();
+      map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+    }
+  }
+
+  // ── Map click — works on iOS, Android, and desktop ───────
+  map.on("click", e => {
+    if (!pinMode) return;
+    if (navigator.vibrate) navigator.vibrate(30);
+    pushStop([e.latlng.lat, e.latlng.lng]);
+    optimizeRoute();
+  });
+
+  // ── Desktop hold-to-drop (still works when NOT in pin mode)
   let holdTimer = null;
   const HOLD_DELAY = 500;
-
-  map.on("touchstart", e => {
-    map.dragging.disable();
-    holdTimer = setTimeout(() => addStopFromCoords(e.latlng), HOLD_DELAY);
-  });
-  map.on("touchmove touchend touchcancel", () => {
-    clearTimeout(holdTimer);
-    map.dragging.enable();
-  });
   map.on("mousedown", e => {
-    holdTimer = setTimeout(() => addStopFromCoords(e.latlng), HOLD_DELAY);
+    if (pinMode) return;
+    holdTimer = setTimeout(() => {
+      pushStop([e.latlng.lat, e.latlng.lng]);
+      optimizeRoute();
+    }, HOLD_DELAY);
   });
   map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
@@ -190,14 +259,17 @@
     if (!start) throw "No location";
     const [lat, lon] = start;
     const viewbox = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
-    const url =
+    const data = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json` +
-      `&q=${encodeURIComponent(address)}&limit=1&viewbox=${viewbox}&bounded=1`;
-    const data = await fetch(url, { headers:{"Accept":"application/json"} }).then(r=>r.json());
+      `&q=${encodeURIComponent(address)}&limit=1&viewbox=${viewbox}&bounded=1`,
+      { headers:{"Accept":"application/json"} }
+    ).then(r => r.json());
+
     if (!data.length) {
       const fb = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
-      ).then(r=>r.json());
+        `https://nominatim.openstreetmap.org/search?format=json` +
+        `&q=${encodeURIComponent(address)}&limit=1`
+      ).then(r => r.json());
       if (!fb.length) throw "Not found";
       return [parseFloat(fb[0].lat), parseFloat(fb[0].lon)];
     }
@@ -219,22 +291,12 @@
     }
   }
 
-  // ── Add stop via long-press ───────────────────────────────
-  function addStopFromCoords(latlng) {
-    if (!start) return;
-    if (navigator.vibrate) navigator.vibrate(30);
-    pushStop([latlng.lat, latlng.lng]);
-    optimizeRoute();
-  }
-
-  // ── Core: push a coord, create a placeholder marker ───────
+  // ── Register a new stop ───────────────────────────────────
   function pushStop(coord) {
-    const idx = stops.length;
     stops.push(coord);
-    // Start with "?" until the route is optimized
     const m = L.marker(coord, { icon: makeNumberIcon("?", "#8e8e93") })
       .addTo(map)
-      .bindPopup(`Stop ${idx + 1}`);
+      .bindPopup(`Stop ${stops.length}`);
     markers.push(m);
     routeOrder.push(0);
     renderStops();
@@ -247,11 +309,11 @@
     stops.splice(index, 1);
     routeOrder.splice(index, 1);
     renderStops();
-    if (stops.length === 0) clearRoute();
+    if (stops.length === 0) clearPolyline();
     else optimizeRoute();
   }
 
-  // ── Render stop list panel ────────────────────────────────
+  // ── Render stop list ──────────────────────────────────────
   function renderStops() {
     document.getElementById("stops").innerHTML = stops
       .map((_, i) => {
@@ -261,23 +323,28 @@
           <span class="stop-label">Stop ${i + 1}</span>
           <button class="remove" onclick="removeStop(${i})">✕</button>
         </div>`;
-      })
-      .join("");
+      }).join("");
   }
 
-  // ── Clear polyline only ───────────────────────────────────
-  function clearRoute() {
+  // ── Clear polyline without touching stops ─────────────────
+  function clearPolyline() {
     if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-    // reset all markers to grey "?"
-    markers.forEach(m => m.setIcon(makeNumberIcon("?", "#8e8e93")));
-    routeOrder = stops.map(() => 0);
+  }
+
+  // ── Clear everything ──────────────────────────────────────
+  function clearAll() {
+    clearPolyline();
+    markers.forEach(m => map.removeLayer(m));
+    markers    = [];
+    stops      = [];
+    routeOrder = [];
     renderStops();
   }
 
   // ── Optimize route & update numbered markers ──────────────
   async function optimizeRoute() {
     if (!start || stops.length === 0) return;
-    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    clearPolyline();
 
     const coords = [start, ...stops].map(c => `${c[1]},${c[0]}`).join(";");
     const url =
@@ -288,34 +355,23 @@
       const data = await fetch(url).then(r => r.json());
       if (!data.trips) { alert("Route failed"); return; }
 
-      // data.waypoints[0] = start (fixed), [1..n] = our stops
-      // waypoint_index = position in the optimized trip (0-based)
-      // start is always trip position 0, so stop positions = waypoint_index of waypoints[1..]
-      const waypoints = data.waypoints; // length = stops.length + 1
-
+      // waypoints[i+1].waypoint_index = optimized trip position for stops[i]
+      const waypoints = data.waypoints;
       stops.forEach((_, i) => {
-        // waypoints index for this stop is i+1 (because index 0 = start)
-        const tripPos = waypoints[i + 1].waypoint_index; // 0-based; start=0
-        // Route stop number shown to user: tripPos (start=0 already claimed)
-        routeOrder[i] = tripPos; // 0 = first after start, etc.
+        routeOrder[i] = waypoints[i + 1].waypoint_index;
       });
 
-      // Rebase so the smallest is 1
+      // Rebase so the first stop is 1
       const minPos = Math.min(...routeOrder);
       routeOrder = routeOrder.map(p => p - minPos + 1);
 
-      // Update each marker icon with its route number
       const color = darkMode ? "#0a84ff" : "#007aff";
-      markers.forEach((m, i) => {
-        m.setIcon(makeNumberIcon(routeOrder[i], color));
-      });
-
+      markers.forEach((m, i) => m.setIcon(makeNumberIcon(routeOrder[i], color)));
       renderStops();
 
-      // Draw polyline
       const route = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      routeLine = L.polyline(route, { color, weight: 5 }).addTo(map);
-      map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+      routeLine = L.polyline(route, { color, weight:5 }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding:[20,20] });
 
     } catch (err) {
       console.error(err);
@@ -327,13 +383,8 @@
   function toggleNightMode() {
     darkMode = !darkMode;
     document.body.classList.toggle("dark", darkMode);
-    if (darkMode) {
-      map.removeLayer(lightTiles);
-      darkTiles.addTo(map);
-    } else {
-      map.removeLayer(darkTiles);
-      lightTiles.addTo(map);
-    }
+    if (darkMode) { map.removeLayer(lightTiles); darkTiles.addTo(map); }
+    else          { map.removeLayer(darkTiles);  lightTiles.addTo(map); }
     if (stops.length > 0) optimizeRoute();
   }
 
