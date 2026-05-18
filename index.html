@@ -16,305 +16,186 @@
 
   <style>
     :root {
-      --red:       #e8293a;
-      --red-dim:   #b01e2b;
-      --red-glow:  rgba(232,41,58,.18);
-      --red-soft:  rgba(232,41,58,.10);
-      --bg:        #0f0a0a;
-      --surface:   #170d0d;
-      --raised:    #201212;
-      --raised2:   #2a1717;
-      --border:    rgba(255,255,255,.07);
-      --border-r:  rgba(232,41,58,.2);
-      --text:      #f5f0f0;
-      --muted:     #6b5555;
-      --radius:    12px;
-      --safe-b:    env(safe-area-inset-bottom, 0px);
-      --safe-t:    env(safe-area-inset-top, 0px);
+      --red:      #e8293a;
+      --red-dim:  #b01e2b;
+      --red-soft: rgba(232,41,58,.10);
+      --bg:       #0f0a0a;
+      --surface:  #170d0d;
+      --raised:   #201212;
+      --raised2:  #2a1717;
+      --border:   rgba(255,255,255,.07);
+      --border-r: rgba(232,41,58,.2);
+      --text:     #f5f0f0;
+      --muted:    #6b5555;
+      --radius:   12px;
+      --safe-b:   env(safe-area-inset-bottom, 0px);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html {
-      height: 100%;
-      overflow: hidden;
-      position: fixed;
-      width: 100%;
-    }
-
+    html { height: 100%; overflow: hidden; position: fixed; width: 100%; }
     body {
       height: 100%;
       font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      overflow: hidden; display: flex; flex-direction: column;
     }
 
-    /* ── MAP ──────────────────────────────────────────────── */
-    #map-wrap {
-      position: relative;
-      flex: 1 1 0;
-      min-height: 0;
-    }
-
-    #map {
-      height: 100%;
-      width: 100%;
-    }
+    /* ── MAP ─────────────────────────────────────────── */
+    #map-wrap { position: relative; flex: 1 1 0; min-height: 0; }
+    #map { height: 100%; width: 100%; }
 
     .leaflet-control-attribution {
-      background: rgba(0,0,0,.55) !important;
-      color: rgba(255,255,255,.3) !important;
-      font-size: 9px !important;
-      backdrop-filter: blur(4px);
+      background: rgba(0,0,0,.55) !important; color: rgba(255,255,255,.3) !important;
+      font-size: 9px !important; backdrop-filter: blur(4px);
     }
     .leaflet-control-attribution a { color: rgba(255,255,255,.35) !important; }
-    .leaflet-control-zoom {
-      border: none !important;
-      box-shadow: 0 2px 12px rgba(0,0,0,.5) !important;
-    }
+    .leaflet-control-zoom { border: none !important; box-shadow: 0 2px 12px rgba(0,0,0,.5) !important; }
     .leaflet-control-zoom a {
-      background: var(--surface) !important;
-      color: var(--text) !important;
+      background: var(--surface) !important; color: var(--text) !important;
       border-color: var(--border) !important;
-      font-size: 18px !important;
-      width: 38px !important;
-      height: 38px !important;
-      line-height: 38px !important;
+      font-size: 18px !important; width: 38px !important; height: 38px !important; line-height: 38px !important;
     }
-    .leaflet-control-zoom a:hover {
-      background: var(--raised2) !important;
-      color: var(--red) !important;
-    }
-
+    .leaflet-control-zoom a:hover { background: var(--raised2) !important; color: var(--red) !important; }
     #map.pin-mode { outline: 2.5px solid var(--red); outline-offset: -2px; }
 
-    /* Floating status pill */
     #status-pill {
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-6px);
-      z-index: 900;
-      background: var(--red);
-      color: #fff;
+      position: absolute; top: 12px; left: 50%;
+      transform: translateX(-50%) translateY(-6px); z-index: 900;
+      background: var(--red); color: #fff;
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      padding: 7px 18px;
-      border-radius: 4px;
-      pointer-events: none;
-      opacity: 0;
+      font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+      padding: 7px 18px; border-radius: 4px; pointer-events: none; opacity: 0;
       transition: opacity .2s ease, transform .2s ease;
-      white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(232,41,58,.4);
+      white-space: nowrap; box-shadow: 0 4px 20px rgba(232,41,58,.4);
     }
-    #status-pill.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    #status-pill.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* ── BOTTOM SHEET PANEL ───────────────────────────────── */
+    /* ── PANEL ───────────────────────────────────────── */
     #panel {
-      flex: 0 0 auto;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      padding-bottom: var(--safe-b);
-      max-height: 52vh;
+      flex: 0 0 auto; background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding-bottom: var(--safe-b); max-height: 48vh;
     }
-
     #drag-handle {
-      width: 36px; height: 4px;
-      background: var(--raised2);
-      border-radius: 2px;
-      margin: 10px auto 6px;
-      flex-shrink: 0;
+      width: 36px; height: 4px; background: var(--raised2);
+      border-radius: 2px; margin: 10px auto 6px; flex-shrink: 0;
     }
 
-    /* ── APP HEADER ───────────────────────────────────────── */
+    /* ── HEADER ──────────────────────────────────────── */
     #header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 4px 16px 10px;
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 16px 10px; flex-shrink: 0;
     }
-
     #app-name {
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--text);
-      line-height: 1;
+      font-size: 20px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--text); line-height: 1;
     }
-
     #app-name span { color: var(--red); }
 
     .hdr-btn {
-      width: 38px; height: 38px;
-      border-radius: 10px;
-      background: var(--raised);
-      border: 1px solid var(--border);
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--raised); border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      color: var(--muted);
+      cursor: pointer; color: var(--muted); position: relative;
       transition: color .15s, background .15s, border-color .15s;
       -webkit-tap-highlight-color: transparent;
-      position: relative;
     }
     .hdr-btn:active { background: var(--raised2); color: var(--red); }
     .hdr-btn.active { color: var(--red); border-color: var(--border-r); background: var(--red-soft); }
 
-    /* Badge on saved-routes button */
     .hdr-badge {
-      position: absolute;
-      top: -4px; right: -4px;
+      position: absolute; top: -4px; right: -4px;
       min-width: 16px; height: 16px;
-      background: var(--red);
-      color: #fff;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 10px;
-      font-weight: 700;
-      border-radius: 8px;
-      padding: 0 4px;
+      background: var(--red); color: #fff;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700;
+      border-radius: 8px; padding: 0 4px;
       display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-      opacity: 0;
-      transform: scale(0);
+      pointer-events: none; opacity: 0; transform: scale(0);
       transition: opacity .2s, transform .2s;
     }
     .hdr-badge.show { opacity: 1; transform: scale(1); }
 
-    /* ── INPUT ROW ────────────────────────────────────────── */
-    #input-row {
-      display: flex;
-      gap: 8px;
-      padding: 0 16px 10px;
-      flex-shrink: 0;
-    }
+    /* ── INPUT ROW ───────────────────────────────────── */
+    #input-row { display: flex; gap: 8px; padding: 0 16px 10px; flex-shrink: 0; }
 
     #address {
-      flex: 1;
-      background: var(--raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      padding: 0 14px;
-      height: 48px;
-      outline: none;
-      transition: border-color .15s, background .15s;
-      -webkit-appearance: none;
+      flex: 1; background: var(--raised); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      padding: 0 14px; height: 48px; outline: none;
+      transition: border-color .15s, background .15s; -webkit-appearance: none;
     }
     #address::placeholder { color: var(--muted); }
-    #address:focus {
-      border-color: var(--red);
-      background: var(--raised2);
-    }
+    #address:focus { border-color: var(--red); background: var(--raised2); }
 
     #btn-add {
-      height: 48px;
-      padding: 0 20px;
-      background: var(--red);
-      color: #fff;
-      border: none;
+      height: 48px; padding: 0 20px; background: var(--red); color: #fff; border: none;
       border-radius: var(--radius);
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background .15s, transform .1s;
+      font-size: 16px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+      cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s;
       -webkit-tap-highlight-color: transparent;
     }
     #btn-add:active { background: var(--red-dim); transform: scale(.96); }
 
-    /* ── ACTION ROW ───────────────────────────────────────── */
-    #action-row {
-      display: flex;
-      gap: 8px;
-      padding: 0 16px 10px;
-      flex-shrink: 0;
-    }
+    /* ── ACTION ROW ──────────────────────────────────── */
+    #action-row { display: flex; gap: 8px; padding: 0 16px 10px; flex-shrink: 0; }
 
     .action-btn {
-      flex: 1;
-      height: 44px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--raised);
-      color: var(--muted);
+      flex: 1; height: 44px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--raised); color: var(--muted);
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: background .15s, border-color .15s, color .15s, transform .1s;
-      -webkit-tap-highlight-color: transparent;
-      -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent; -webkit-appearance: none;
     }
     .action-btn:active { transform: scale(.96); }
 
-    #btn-pin:active, #btn-pin.active {
-      background: var(--red-soft);
-      border-color: var(--red);
-      color: var(--red);
-    }
+    #btn-pin.active, #btn-pin:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    #btn-optimize:active { background: rgba(0,200,100,.08); border-color: rgba(0,200,100,.4); color: #00c864; }
+    #btn-save-route:active { background: rgba(255,180,0,.08); border-color: rgba(255,180,0,.4); color: #ffb400; }
+    #btn-save-route.has-stops { color: var(--text); border-color: rgba(255,180,0,.25); }
+    #btn-clear:active { background: rgba(255,100,80,.08); border-color: rgba(255,100,80,.4); color: #ff6450; }
 
-    #btn-optimize:active {
-      background: rgba(0,200,100,.08);
-      border-color: rgba(0,200,100,.4);
-      color: #00c864;
-    }
+    /* ── STOPS LIST ──────────────────────────────────── */
+    /* outer is relative so the fade pseudo-element can overlay it */
+    #stops-outer { flex: 1; min-height: 0; position: relative; }
 
-    #btn-clear:active {
-      background: rgba(255,100,80,.08);
-      border-color: rgba(255,100,80,.4);
-      color: #ff6450;
-    }
-
-    #btn-save-route:active {
-      background: rgba(255,180,0,.08);
-      border-color: rgba(255,180,0,.4);
-      color: #ffb400;
-    }
-    #btn-save-route.has-stops {
-      color: var(--text);
-      border-color: rgba(255,180,0,.25);
-    }
-
-    /* ── STOP LIST ─────────────────────────────────────────── */
     #stops-wrap {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
+      height: 100%; overflow-y: auto; overflow-x: hidden;
       padding: 2px 16px 8px;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;   /* don't let scroll bleed to map */
+      touch-action: pan-y;            /* iOS: treat as vertical scroll area */
     }
-
     #stops-wrap::-webkit-scrollbar { display: none; }
 
+    /* Bottom fade — shows when list overflows */
+    #stops-outer::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 28px;
+      background: linear-gradient(to bottom, transparent, var(--surface));
+      pointer-events: none; opacity: 0; transition: opacity .2s;
+    }
+    #stops-outer.overflows::after { opacity: 1; }
+
+    /* Label row */
+    #stops-label {
+      display: none;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); padding: 4px 0 8px;
+      align-items: center; gap: 8px;
+    }
+    #stops-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
     .stop-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
       animation: slideUp .18s ease;
     }
     .stop-item:last-child { border-bottom: none; }
@@ -325,415 +206,164 @@
     }
 
     .stop-num {
-      width: 30px; height: 30px;
-      border-radius: 8px;
-      background: var(--red);
-      color: #fff;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--red); color: #fff;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: background .2s;
+      flex-shrink: 0; transition: background .2s;
     }
     .stop-num.pending {
-      background: var(--raised2);
-      border: 1px solid var(--border);
-      color: var(--muted);
+      background: var(--raised2); border: 1px solid var(--border);
+      color: var(--muted); font-size: 18px;
     }
 
-    .stop-meta {
-      flex: 1;
-      min-width: 0;
+    .stop-meta { flex: 1; min-width: 0; }
+
+    /* Address = primary text */
+    .stop-addr {
+      display: block; font-size: 13px; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;
     }
-    .stop-meta strong {
-      display: block;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .stop-meta span {
-      font-size: 12px;
-      color: var(--muted);
-    }
+    .stop-addr.loading { color: var(--muted); font-style: italic; }
+
+    /* Coordinates = secondary hint */
+    .stop-coord { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
 
     .stop-remove {
-      width: 36px; height: 36px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      background: none;
-      color: var(--muted);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
+      width: 36px; height: 36px; border-radius: 8px;
+      border: 1px solid transparent; background: none; color: var(--muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; -webkit-tap-highlight-color: transparent;
       transition: background .15s, color .15s, border-color .15s;
     }
-    .stop-remove:active {
-      background: rgba(232,41,58,.12);
-      border-color: rgba(232,41,58,.3);
-      color: var(--red);
-    }
+    .stop-remove:active { background: rgba(232,41,58,.12); border-color: rgba(232,41,58,.3); color: var(--red); }
 
     #empty-state {
-      text-align: center;
-      padding: 16px 0 8px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
+      text-align: center; padding: 16px 0 8px; color: var(--muted); font-size: 13px; line-height: 1.7;
     }
     #empty-state strong {
       display: block;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      color: var(--raised2);
-      margin-bottom: 2px;
+      font-size: 15px; letter-spacing: .07em; text-transform: uppercase;
+      color: var(--raised2); margin-bottom: 2px;
     }
 
-    /* ── CUSTOM MARKER ────────────────────────────────────── */
+    /* ── CUSTOM PIN ──────────────────────────────────── */
     .rr-pin { position: relative; width: 30px; height: 38px; }
     .rr-pin-body {
-      position: absolute; inset: 0;
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      box-shadow: 0 4px 14px rgba(0,0,0,.55);
+      position: absolute; inset: 0; border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg); box-shadow: 0 4px 14px rgba(0,0,0,.55);
     }
     .rr-pin-num {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       padding-bottom: 4px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px; font-weight: 700; color: #fff; line-height: 1;
-      z-index: 1;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; color: #fff; z-index: 1;
     }
 
-    /* ══════════════════════════════════════════════════════════
-       OVERLAY BACKDROP
-    ══════════════════════════════════════════════════════════ */
+    /* ── BACKDROP ────────────────────────────────────── */
     .sheet-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.65);
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .25s ease;
-      backdrop-filter: blur(2px);
+      position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 1000;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s ease; backdrop-filter: blur(2px);
     }
-    .sheet-backdrop.open {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
 
-    /* ══════════════════════════════════════════════════════════
-       SAVE ROUTE MODAL
-    ══════════════════════════════════════════════════════════ */
+    /* ── SAVE MODAL ──────────────────────────────────── */
     #save-modal {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 1001;
-      background: var(--surface);
-      border-top: 1px solid var(--border-r);
-      border-radius: 20px 20px 0 0;
-      padding: 0 20px calc(20px + var(--safe-b));
-      transform: translateY(100%);
-      transition: transform .3s cubic-bezier(.32,.72,0,1);
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+      background: var(--surface); border-top: 1px solid var(--border-r);
+      border-radius: 20px 20px 0 0; padding: 0 20px calc(20px + var(--safe-b));
+      transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
     }
     #save-modal.open { transform: translateY(0); }
-
-    .modal-handle {
-      width: 36px; height: 4px;
-      background: var(--raised2);
-      border-radius: 2px;
-      margin: 14px auto 18px;
-    }
-
+    .modal-handle { width: 36px; height: 4px; background: var(--raised2); border-radius: 2px; margin: 14px auto 18px; }
     .modal-title {
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      color: var(--text);
-      margin-bottom: 4px;
+      font-size: 18px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+      color: var(--text); margin-bottom: 4px;
     }
-
-    .modal-sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 18px;
-    }
-
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
     .modal-input {
-      width: 100%;
-      background: var(--raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      padding: 0 14px;
-      height: 50px;
-      outline: none;
-      transition: border-color .15s, background .15s;
-      -webkit-appearance: none;
-      margin-bottom: 14px;
+      width: 100%; background: var(--raised); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      padding: 0 14px; height: 50px; outline: none;
+      transition: border-color .15s, background .15s; -webkit-appearance: none; margin-bottom: 14px;
     }
     .modal-input::placeholder { color: var(--muted); }
-    .modal-input:focus {
-      border-color: var(--red);
-      background: var(--raised2);
-    }
-
-    .modal-btns {
-      display: flex;
-      gap: 10px;
-    }
-
+    .modal-input:focus { border-color: var(--red); background: var(--raised2); }
+    .modal-btns { display: flex; gap: 10px; }
     .modal-btn-cancel {
-      flex: 1;
-      height: 50px;
-      background: var(--raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--muted);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background .15s, transform .1s;
+      flex: 1; height: 50px; background: var(--raised); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
+      letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s;
     }
     .modal-btn-cancel:active { background: var(--raised2); transform: scale(.97); }
-
     .modal-btn-confirm {
-      flex: 2;
-      height: 50px;
-      background: var(--red);
-      border: none;
-      border-radius: var(--radius);
-      color: #fff;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background .15s, transform .1s;
+      flex: 2; height: 50px; background: var(--red); border: none;
+      border-radius: var(--radius); color: #fff;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
+      letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s;
     }
     .modal-btn-confirm:active { background: var(--red-dim); transform: scale(.97); }
 
-    /* ══════════════════════════════════════════════════════════
-       SAVED ROUTES DRAWER
-    ══════════════════════════════════════════════════════════ */
+    /* ── ROUTES DRAWER ───────────────────────────────── */
     #routes-drawer {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 1001;
-      background: var(--surface);
-      border-top: 1px solid var(--border-r);
-      border-radius: 20px 20px 0 0;
-      max-height: 82vh;
-      display: flex;
-      flex-direction: column;
-      transform: translateY(100%);
-      transition: transform .3s cubic-bezier(.32,.72,0,1);
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+      background: var(--surface); border-top: 1px solid var(--border-r);
+      border-radius: 20px 20px 0 0; max-height: 82vh;
+      display: flex; flex-direction: column;
+      transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
       padding-bottom: var(--safe-b);
     }
     #routes-drawer.open { transform: translateY(0); }
-
-    .drawer-handle {
-      width: 36px; height: 4px;
-      background: var(--raised2);
-      border-radius: 2px;
-      margin: 14px auto 0;
-      flex-shrink: 0;
-    }
-
+    .drawer-handle { width: 36px; height: 4px; background: var(--raised2); border-radius: 2px; margin: 14px auto 0; flex-shrink: 0; }
     .drawer-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px 12px;
-      flex-shrink: 0;
-      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px 12px; flex-shrink: 0; border-bottom: 1px solid var(--border);
     }
-
-    .drawer-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      color: var(--text);
-    }
+    .drawer-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--text); }
     .drawer-title span { color: var(--red); }
-
     .drawer-close {
-      width: 34px; height: 34px;
-      border-radius: 8px;
-      background: var(--raised);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background .15s, color .15s;
+      width: 34px; height: 34px; border-radius: 8px; background: var(--raised); border: 1px solid var(--border);
+      color: var(--muted); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s;
     }
     .drawer-close:active { background: var(--raised2); color: var(--red); }
-
     .drawer-list {
-      flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 8px 20px 12px;
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain; padding: 8px 20px 12px;
     }
     .drawer-list::-webkit-scrollbar { display: none; }
 
-    /* Empty saved state */
-    .drawer-empty {
-      text-align: center;
-      padding: 32px 0 16px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.8;
-    }
-    .drawer-empty strong {
-      display: block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      color: var(--raised2);
-      margin-bottom: 4px;
-    }
+    .drawer-empty { text-align: center; padding: 32px 0 16px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+    .drawer-empty strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; letter-spacing: .07em; text-transform: uppercase; color: var(--raised2); margin-bottom: 4px; }
 
-    /* Saved route card */
-    .route-card {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 13px 0;
-      border-bottom: 1px solid var(--border);
-      animation: slideUp .18s ease;
-    }
+    .route-card { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; animation: slideUp .18s ease; }
     .route-card:last-child { border-bottom: none; }
-
-    .route-icon {
-      width: 38px; height: 38px;
-      border-radius: 10px;
-      background: var(--red-soft);
-      border: 1px solid var(--border-r);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      color: var(--red);
-    }
-
-    .route-info {
-      flex: 1;
-      min-width: 0;
-    }
-    .route-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 2px;
-    }
-    .route-meta {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .route-actions {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
-    .route-btn {
-      width: 36px; height: 36px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--raised);
-      color: var(--muted);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background .15s, color .15s, border-color .15s, transform .1s;
-    }
+    .route-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--red-soft); border: 1px solid var(--border-r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--red); }
+    .route-info { flex: 1; min-width: 0; }
+    .route-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+    .route-meta { font-size: 12px; color: var(--muted); }
+    .route-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .route-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--raised); color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s, transform .1s; }
     .route-btn:active { transform: scale(.93); }
-    .route-btn.load:active {
-      background: var(--red-soft);
-      border-color: var(--red);
-      color: var(--red);
-    }
-    .route-btn.del:active {
-      background: rgba(255,100,80,.1);
-      border-color: rgba(255,100,80,.3);
-      color: #ff6450;
-    }
-
-    /* Confirm delete row */
-    .route-card.confirming .route-confirm {
-      display: flex;
-    }
-    .route-confirm {
-      display: none;
-      gap: 8px;
-      padding: 10px 0 4px;
-      align-items: center;
-    }
-    .route-confirm span {
-      flex: 1;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .route-confirm-yes {
-      padding: 6px 14px;
-      background: rgba(255,100,80,.12);
-      border: 1px solid rgba(255,100,80,.35);
-      border-radius: 8px;
-      color: #ff6450;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .route-confirm-no {
-      padding: 6px 14px;
-      background: var(--raised);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--muted);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
+    .route-btn.load:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    .route-btn.del:active { background: rgba(255,100,80,.1); border-color: rgba(255,100,80,.3); color: #ff6450; }
+    .route-confirm { display: none; width: 100%; gap: 8px; padding: 8px 0 2px; align-items: center; }
+    .route-card.confirming .route-confirm { display: flex; }
+    .route-confirm span { flex: 1; font-size: 12px; color: var(--muted); }
+    .route-confirm-yes { padding: 6px 14px; background: rgba(255,100,80,.12); border: 1px solid rgba(255,100,80,.35); border-radius: 8px; color: #ff6450; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .route-confirm-no { padding: 6px 14px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
-
 <body>
 
 <div id="map-wrap">
-  <div id="status-pill">Tap map to place stop</div>
+  <div id="status-pill"></div>
   <div id="map"></div>
 </div>
 
@@ -743,25 +373,18 @@
   <div id="header">
     <div id="app-name">Simple <span>Route</span> Planner</div>
     <div style="display:flex;gap:8px">
-      <!-- Saved Routes -->
       <button id="btn-routes" class="hdr-btn" onclick="openRoutesDrawer()" title="Saved routes">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-        </svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         <span id="routes-badge" class="hdr-badge">0</span>
       </button>
-      <!-- Night mode -->
       <button id="btn-night" class="hdr-btn active" onclick="toggleNightMode()" title="Night mode">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
     </div>
   </div>
 
   <div id="input-row">
-    <input id="address" type="text" inputmode="search"
-           placeholder="Search address…"
+    <input id="address" type="text" inputmode="search" placeholder="Search address…"
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            onkeydown="if(event.key==='Enter'){this.blur();addStop()}" />
     <button id="btn-add" onclick="addStop()">Add</button>
@@ -769,61 +392,43 @@
 
   <div id="action-row">
     <button id="btn-pin" class="action-btn" onclick="togglePinMode()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
-        <circle cx="12" cy="10" r="3"/>
-      </svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
       Tap Map
     </button>
-
     <button id="btn-optimize" class="action-btn" onclick="optimizeRoute()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Optimize
     </button>
-
     <button id="btn-save-route" class="action-btn" onclick="openSaveModal()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-        <polyline points="17 21 17 13 7 13 7 21"/>
-        <polyline points="7 3 7 8 15 8"/>
-      </svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Save
     </button>
-
     <button id="btn-clear" class="action-btn" onclick="clearAll()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6l-1 14H6L5 6"/>
-        <path d="M10 11v6"/><path d="M14 11v6"/>
-        <path d="M9 6V4h6v2"/>
-      </svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
       Clear
     </button>
   </div>
 
-  <div id="stops-wrap">
-    <div id="stops"></div>
-    <div id="empty-state">
-      <strong>No stops added</strong>
-      Search an address or tap the map
+  <div id="stops-outer">
+    <div id="stops-wrap">
+      <div id="stops-label">Stops</div>
+      <div id="stops"></div>
+      <div id="empty-state"><strong>No stops added</strong>Search an address or tap the map</div>
     </div>
   </div>
 </div>
 
-<!-- ── BACKDROP ─────────────────────────────────────────────── -->
+<!-- Backdrop -->
 <div id="backdrop" class="sheet-backdrop" onclick="closeAll()"></div>
 
-<!-- ── SAVE MODAL ──────────────────────────────────────────── -->
+<!-- Save Modal -->
 <div id="save-modal">
   <div class="modal-handle"></div>
   <div class="modal-title">Save Route</div>
   <div class="modal-sub" id="save-modal-sub">Name this route to access it later</div>
   <input id="route-name-input" class="modal-input" type="text" inputmode="text"
          placeholder="e.g. Morning deliveries…"
-         autocomplete="off" autocorrect="off" spellcheck="false"
-         maxlength="48"
+         autocomplete="off" autocorrect="off" spellcheck="false" maxlength="48"
          onkeydown="if(event.key==='Enter'){this.blur();confirmSaveRoute()}" />
   <div class="modal-btns">
     <button class="modal-btn-cancel" onclick="closeSaveModal()">Cancel</button>
@@ -831,16 +436,13 @@
   </div>
 </div>
 
-<!-- ── SAVED ROUTES DRAWER ─────────────────────────────────── -->
+<!-- Routes Drawer -->
 <div id="routes-drawer">
   <div class="drawer-handle"></div>
   <div class="drawer-header">
     <div class="drawer-title">Saved <span>Routes</span></div>
     <button class="drawer-close" onclick="closeRoutesDrawer()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
   <div class="drawer-list" id="drawer-list"></div>
@@ -848,488 +450,399 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // ── Init ─────────────────────────────────────────────────
-  const map = L.map("map", {
-    tap: false,
-    zoomControl: true,
-    attributionControl: true
-  }).setView([37.7749, -122.4194], 12);
+  // ─── STATE ────────────────────────────────────────────────────────────
+  // stops[] = [{coord:[lat,lng], address:"short str", routePos:0}]
+  // routePos 0 = pending; 1+ = optimized order position
+  let start       = null;
+  let stops       = [];
+  let markers     = [];
+  let routeLine   = null;
+  let darkMode    = true;
+  let pinMode     = false;
+  let optimizeGen = 0; // bumped on clearAll — any in-flight optimize sees a stale gen and aborts
 
+  // ─── MAP ──────────────────────────────────────────────────────────────
+  const map = L.map("map", { tap: false, zoomControl: true, attributionControl: true })
+    .setView([37.7749, -122.4194], 12);
   map.zoomControl.setPosition("bottomright");
 
-  let start      = null;
-  let stops      = [];
-  let markers    = [];
-  let routeOrder = [];
-  let routeLine  = null;
-  let darkMode   = true;
-  let pinMode    = false;
-
-  // ── Tiles ─────────────────────────────────────────────────
-  const lightTiles = L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom: 19, attribution: "© OpenStreetMap" }
-  );
-  const darkTiles = L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 19, attribution: "© OpenStreetMap © CARTO" }
-  );
+  const lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    { maxZoom: 19, attribution: "© OpenStreetMap" });
+  const darkTiles  = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    { maxZoom: 19, attribution: "© OpenStreetMap © CARTO" });
   darkTiles.addTo(map);
 
-  // ── Marker factory ────────────────────────────────────────
+  // ─── MARKER FACTORY ───────────────────────────────────────────────────
   function makePin(label, bg, textColor) {
-    bg        = bg        || "#e8293a";
-    textColor = textColor || "#fff";
     return L.divIcon({
       className: "",
       html: `<div class="rr-pin">
-               <div class="rr-pin-body" style="background:${bg}"></div>
-               <div class="rr-pin-num" style="color:${textColor}">${label}</div>
+               <div class="rr-pin-body" style="background:${bg||"#e8293a"}"></div>
+               <div class="rr-pin-num" style="color:${textColor||"#fff"}">${label}</div>
              </div>`,
-      iconSize:    [30, 38],
-      iconAnchor:  [15, 38],
-      popupAnchor: [0, -40]
+      iconSize: [30,38], iconAnchor: [15,38], popupAnchor: [0,-40]
     });
   }
 
-  // ── Status pill ───────────────────────────────────────────
-  function showPill(txt) {
+  // ─── STATUS PILL ──────────────────────────────────────────────────────
+  let pillTimer = null;
+  function showPill(txt, ms) {
+    clearTimeout(pillTimer);
     const p = document.getElementById("status-pill");
-    p.textContent = txt;
-    p.classList.add("show");
+    p.textContent = txt; p.classList.add("show");
+    if (ms) pillTimer = setTimeout(hidePill, ms);
   }
-  function hidePill() {
-    document.getElementById("status-pill").classList.remove("show");
-  }
+  function hidePill() { document.getElementById("status-pill").classList.remove("show"); }
 
-  // ── Pin mode ──────────────────────────────────────────────
+  // ─── PIN MODE ─────────────────────────────────────────────────────────
   function togglePinMode() {
     pinMode = !pinMode;
-    const btn   = document.getElementById("btn-pin");
-    const mapEl = document.getElementById("map");
+    document.getElementById("btn-pin").classList.toggle("active", pinMode);
+    document.getElementById("map").classList.toggle("pin-mode", pinMode);
     if (pinMode) {
-      btn.classList.add("active");
-      mapEl.classList.add("pin-mode");
       showPill("Tap map to place stop");
-      map.dragging.disable();
-      map.touchZoom.disable();
-      map.doubleClickZoom.disable();
-      map.scrollWheelZoom.disable();
+      map.dragging.disable(); map.touchZoom.disable();
+      map.doubleClickZoom.disable(); map.scrollWheelZoom.disable();
     } else {
-      btn.classList.remove("active");
-      mapEl.classList.remove("pin-mode");
       hidePill();
-      map.dragging.enable();
-      map.touchZoom.enable();
-      map.doubleClickZoom.enable();
-      map.scrollWheelZoom.enable();
+      map.dragging.enable(); map.touchZoom.enable();
+      map.doubleClickZoom.enable(); map.scrollWheelZoom.enable();
     }
   }
 
   map.on("click", e => {
     if (!pinMode) return;
     if (navigator.vibrate) navigator.vibrate(25);
-    pushStop([e.latlng.lat, e.latlng.lng]);
+    pushStop([e.latlng.lat, e.latlng.lng], null);
     optimizeRoute();
   });
 
   let holdTimer = null;
   map.on("mousedown", e => {
     if (pinMode) return;
-    holdTimer = setTimeout(() => {
-      pushStop([e.latlng.lat, e.latlng.lng]);
-      optimizeRoute();
-    }, 500);
+    holdTimer = setTimeout(() => { pushStop([e.latlng.lat, e.latlng.lng], null); optimizeRoute(); }, 500);
   });
   map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
-  // ── Geolocation ───────────────────────────────────────────
+  // ─── GEOLOCATION ──────────────────────────────────────────────────────
   navigator.geolocation.getCurrentPosition(
     pos => {
       start = [pos.coords.latitude, pos.coords.longitude];
       map.setView(start, 14);
       L.marker(start, { icon: makePin("●", "#ff9500", "#fff") })
-        .addTo(map)
-        .bindPopup("<b>You are here</b>");
+        .addTo(map).bindPopup("<b>You are here</b>");
     },
     () => alert("Location access is required to plan routes."),
     { enableHighAccuracy: true }
   );
 
-  // ── Geocoding ─────────────────────────────────────────────
-  async function geocode(address) {
-    if (!start) throw "No start";
-    const [lat, lon] = start;
-    const vb = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
-
-    const r1 = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json` +
-      `&q=${encodeURIComponent(address)}&limit=1&viewbox=${vb}&bounded=1`,
-      { headers: { Accept: "application/json" } }
-    ).then(r => r.json());
-    if (r1.length) return [+r1[0].lat, +r1[0].lon];
-
-    const r2 = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json` +
-      `&q=${encodeURIComponent(address)}&limit=1`
-    ).then(r => r.json());
-    if (!r2.length) throw "Not found";
-    return [+r2[0].lat, +r2[0].lon];
+  // ─── REVERSE GEOCODE ──────────────────────────────────────────────────
+  async function reverseGeocode(lat, lng) {
+    try {
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        { headers: { Accept: "application/json" } }
+      ).then(r => r.json());
+      const a = r.address || {};
+      const num  = a.house_number || "";
+      const road = a.road || a.pedestrian || a.cycleway || a.path || "";
+      const city = a.city || a.town || a.village || a.suburb || a.neighbourhood || "";
+      if (road && city) return `${num ? num+" ":""}${road}, ${city}`;
+      if (road)         return `${num ? num+" ":""}${road}`;
+      if (r.display_name) return r.display_name.split(",").slice(0,2).join(",").trim();
+    } catch {}
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 
-  // ── Add via address ───────────────────────────────────────
+  // ─── FORWARD GEOCODE ──────────────────────────────────────────────────
+  async function geocode(query) {
+    if (!start) throw new Error("No start");
+    const [lat, lon] = start;
+    const vb = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
+    const r1 = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&viewbox=${vb}&bounded=1`,
+      { headers: { Accept: "application/json" } }
+    ).then(r => r.json());
+    if (r1.length) return { coord: [+r1[0].lat, +r1[0].lon], display: r1[0].display_name };
+    const r2 = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
+    ).then(r => r.json());
+    if (!r2.length) throw new Error("Not found");
+    return { coord: [+r2[0].lat, +r2[0].lon], display: r2[0].display_name };
+  }
+
+  function shortenAddress(display) {
+    // Nominatim display_name: "123 Main St, Suburb, City, County, State, ZIP, Country"
+    // We want "123 Main St, City" — take first 2 meaningful parts
+    const parts = display.split(",").map(s => s.trim())
+      .filter(p => p.length > 1 && !/^\d{4,}$/.test(p)); // drop bare ZIP codes
+    return parts.slice(0, 2).join(", ");
+  }
+
+  // ─── ADD STOP VIA SEARCH ──────────────────────────────────────────────
   async function addStop() {
     const input = document.getElementById("address");
     const btn   = document.getElementById("btn-add");
     const val   = input.value.trim();
     if (!val || !start) return;
-
-    btn.textContent  = "...";
-    btn.style.opacity = ".55";
+    btn.textContent = "…"; btn.style.opacity = ".55";
     try {
-      const coord = await geocode(val);
-      pushStop(coord);
+      const { coord, display } = await geocode(val);
+      pushStop(coord, shortenAddress(display)); // address known — skip reverse geocode
       input.value = "";
       optimizeRoute();
     } catch {
       input.style.borderColor = "#e8293a";
       input.style.background  = "rgba(232,41,58,.08)";
-      setTimeout(() => {
-        input.style.borderColor = "";
-        input.style.background  = "";
-      }, 1400);
+      setTimeout(() => { input.style.borderColor = ""; input.style.background = ""; }, 1400);
     } finally {
-      btn.textContent   = "Add";
-      btn.style.opacity = "";
+      btn.textContent = "Add"; btn.style.opacity = "";
     }
   }
 
-  // ── Push stop ─────────────────────────────────────────────
-  function pushStop(coord) {
-    stops.push(coord);
+  // ─── PUSH STOP ────────────────────────────────────────────────────────
+  // knownAddress = string → use it directly
+  // null → show "Locating…" then reverse-geocode async
+  async function pushStop(coord, knownAddress) {
+    const stopObj = { coord, address: knownAddress || "Locating…", routePos: 0 };
+    stops.push(stopObj);
+
     const m = L.marker(coord, { icon: makePin("·", "#3a1a1a", "#aaa") })
-      .addTo(map)
-      .bindPopup(`Stop ${stops.length}`);
+      .addTo(map).bindPopup(stopObj.address);
     markers.push(m);
-    routeOrder.push(0);
+
     document.getElementById("empty-state").style.display = "none";
-    updateSaveBtn();
-    renderStops();
+    updateSaveBtn(); renderStops();
+
+    if (!knownAddress) {
+      const addr = await reverseGeocode(coord[0], coord[1]);
+      stopObj.address = addr;
+      m.setPopupContent(addr);
+      renderStops();
+    }
   }
 
-  // ── Remove stop ───────────────────────────────────────────
-  function removeStop(i) {
-    map.removeLayer(markers[i]);
-    markers.splice(i, 1);
-    stops.splice(i, 1);
-    routeOrder.splice(i, 1);
+  // ─── REMOVE STOP ──────────────────────────────────────────────────────
+  function removeStop(idx) {
+    map.removeLayer(markers[idx]);
+    markers.splice(idx, 1);
+    stops.splice(idx, 1);
     if (stops.length === 0) {
       clearPolyline();
       document.getElementById("empty-state").style.display = "";
     } else {
+      stops.forEach(s => s.routePos = 0); // reset; next optimize will reassign
       optimizeRoute();
     }
-    updateSaveBtn();
-    renderStops();
+    updateSaveBtn(); renderStops();
   }
 
-  // ── Render list ───────────────────────────────────────────
+  // ─── RENDER STOP LIST ─────────────────────────────────────────────────
   function renderStops() {
-    document.getElementById("stops").innerHTML = stops.map((_, i) => {
-      const n = routeOrder[i];
-      const numCls = n ? "stop-num" : "stop-num pending";
-      return `<div class="stop-item">
-        <div class="${numCls}">${n || "·"}</div>
+    const isOptimized = stops.some(s => s.routePos > 0);
+
+    // Build indexed copy and sort by route position when optimized
+    const items = stops.map((s, i) => ({ ...s, _i: i }));
+    if (isOptimized) items.sort((a, b) => a.routePos - b.routePos);
+
+    // Section label
+    const lbl = document.getElementById("stops-label");
+    lbl.style.display = stops.length ? "flex" : "none";
+    lbl.textContent   = isOptimized ? "Optimized Order" : "Stops";
+
+    document.getElementById("stops").innerHTML = items.map(s => `
+      <div class="stop-item">
+        <div class="stop-num${s.routePos ? "" : " pending"}">${s.routePos || "·"}</div>
         <div class="stop-meta">
-          <strong>Stop ${i + 1}</strong>
-          <span>${n ? `Route position ${n}` : "Pending optimization"}</span>
+          <span class="stop-addr${s.address === "Locating…" ? " loading" : ""}">${escHtml(s.address)}</span>
+          <span class="stop-coord">${s.coord[0].toFixed(4)}, ${s.coord[1].toFixed(4)}</span>
         </div>
-        <button class="stop-remove" onclick="removeStop(${i})" aria-label="Remove stop ${i+1}">
+        <button class="stop-remove" onclick="removeStop(${s._i})" aria-label="Remove stop">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
-      </div>`;
-    }).join("");
+      </div>`).join("");
+
+    // Show fade indicator if list is taller than its container
+    const wrap = document.getElementById("stops-wrap");
+    document.getElementById("stops-outer")
+      .classList.toggle("overflows", wrap.scrollHeight > wrap.clientHeight + 4);
   }
 
-  // ── Clear polyline ────────────────────────────────────────
+  // ─── CLEAR POLYLINE ───────────────────────────────────────────────────
   function clearPolyline() {
     if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   }
 
-  // ── Clear all ─────────────────────────────────────────────
+  // ─── CLEAR ALL ────────────────────────────────────────────────────────
   function clearAll() {
+    optimizeGen++;                           // ← makes any in-flight optimizeRoute() bail out
     clearPolyline();
     markers.forEach(m => map.removeLayer(m));
-    markers = []; stops = []; routeOrder = [];
+    markers = []; stops = [];
     document.getElementById("stops").innerHTML = "";
     document.getElementById("empty-state").style.display = "";
+    document.getElementById("stops-label").style.display  = "none";
+    document.getElementById("stops-outer").classList.remove("overflows");
     updateSaveBtn();
   }
 
-  // ── Optimize ──────────────────────────────────────────────
+  // ─── OPTIMIZE ROUTE ───────────────────────────────────────────────────
   async function optimizeRoute() {
     if (!start || stops.length === 0) return;
+    const myGen = optimizeGen;              // snapshot
     clearPolyline();
 
-    const coords = [start, ...stops].map(c => `${c[1]},${c[0]}`).join(";");
+    const coords = [start, ...stops.map(s => s.coord)].map(c => `${c[1]},${c[0]}`).join(";");
     try {
       const data = await fetch(
-        `https://router.project-osrm.org/trip/v1/driving/${coords}` +
-        `?source=first&roundtrip=false&geometries=geojson`
+        `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
       ).then(r => r.json());
 
+      if (optimizeGen !== myGen) return;   // clearAll() fired while we were waiting → discard
       if (!data.trips) return;
 
-      stops.forEach((_, i) => {
-        routeOrder[i] = data.waypoints[i + 1].waypoint_index;
-      });
-      const min = Math.min(...routeOrder);
-      routeOrder = routeOrder.map(p => p - min + 1);
+      stops.forEach((s, i) => { s.routePos = data.waypoints[i + 1].waypoint_index; });
+      const minPos = Math.min(...stops.map(s => s.routePos));
+      stops.forEach(s => s.routePos = s.routePos - minPos + 1);
 
-      markers.forEach((m, i) => m.setIcon(makePin(routeOrder[i], "#e8293a", "#fff")));
+      markers.forEach((m, i) => m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff")));
       renderStops();
 
       const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      routeLine = L.polyline(pts, {
-        color: "#e8293a",
-        weight: 4.5,
-        opacity: .9,
-        lineCap: "round",
-        lineJoin: "round"
-      }).addTo(map);
-
-      map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
-
-    } catch (err) {
-      console.error(err);
-    }
+      routeLine = L.polyline(pts, { color:"#e8293a", weight:4.5, opacity:.9, lineCap:"round", lineJoin:"round" }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [28,28] });
+    } catch(err) { console.error(err); }
   }
 
-  // ── Night mode ────────────────────────────────────────────
+  // ─── NIGHT MODE ───────────────────────────────────────────────────────
   function toggleNightMode() {
     darkMode = !darkMode;
-    const btn = document.getElementById("btn-night");
-    btn.classList.toggle("active", darkMode);
-    if (darkMode) {
-      map.removeLayer(lightTiles);
-      darkTiles.addTo(map);
-    } else {
-      map.removeLayer(darkTiles);
-      lightTiles.addTo(map);
-    }
+    document.getElementById("btn-night").classList.toggle("active", darkMode);
+    if (darkMode) { map.removeLayer(lightTiles); darkTiles.addTo(map); }
+    else          { map.removeLayer(darkTiles);  lightTiles.addTo(map); }
     if (stops.length > 0) optimizeRoute();
   }
 
-  // ── Save btn state ────────────────────────────────────────
   function updateSaveBtn() {
-    const btn = document.getElementById("btn-save-route");
-    btn.classList.toggle("has-stops", stops.length > 0);
+    document.getElementById("btn-save-route").classList.toggle("has-stops", stops.length > 0);
   }
 
-  // ══════════════════════════════════════════════════════════
-  // SAVED ROUTES  —  localStorage persistence
-  // ══════════════════════════════════════════════════════════
-  const LS_KEY = "rr_saved_routes_v1";
-
-  function loadSavedRoutes() {
-    try {
-      return JSON.parse(localStorage.getItem(LS_KEY)) || [];
-    } catch { return []; }
-  }
-
-  function persistRoutes(routes) {
-    localStorage.setItem(LS_KEY, JSON.stringify(routes));
-  }
+  // ─── SAVED ROUTES (localStorage) ─────────────────────────────────────
+  const LS_KEY = "rr_saved_routes_v2";
+  function loadSavedRoutes() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; } }
+  function persistRoutes(r)  { localStorage.setItem(LS_KEY, JSON.stringify(r)); }
 
   function refreshBadge() {
-    const routes = loadSavedRoutes();
-    const badge  = document.getElementById("routes-badge");
-    const count  = routes.length;
-    badge.textContent = count;
-    badge.classList.toggle("show", count > 0);
+    const n = loadSavedRoutes().length;
+    const badge = document.getElementById("routes-badge");
+    badge.textContent = n;
+    badge.classList.toggle("show", n > 0);
   }
 
-  // ── Open Save Modal ───────────────────────────────────────
+  // ─── SAVE MODAL ───────────────────────────────────────────────────────
   function openSaveModal() {
-    if (stops.length === 0) {
-      showPill("Add stops first");
-      setTimeout(hidePill, 1800);
-      return;
-    }
+    if (!stops.length) { showPill("Add stops first", 1800); return; }
     document.getElementById("save-modal-sub").textContent =
       `${stops.length} stop${stops.length !== 1 ? "s" : ""} will be saved`;
-    const input = document.getElementById("route-name-input");
-    input.value = "";
+    const inp = document.getElementById("route-name-input");
+    inp.value = "";
     document.getElementById("backdrop").classList.add("open");
     document.getElementById("save-modal").classList.add("open");
-    // Slight delay so sheet animation completes before keyboard pops
-    setTimeout(() => input.focus(), 350);
+    setTimeout(() => inp.focus(), 350);
   }
-
   function closeSaveModal() {
     document.getElementById("backdrop").classList.remove("open");
     document.getElementById("save-modal").classList.remove("open");
     document.getElementById("route-name-input").blur();
   }
-
   function confirmSaveRoute() {
-    const input = document.getElementById("route-name-input");
-    const name  = input.value.trim();
+    const inp  = document.getElementById("route-name-input");
+    const name = inp.value.trim();
     if (!name) {
-      input.style.borderColor = "#e8293a";
-      input.style.background  = "rgba(232,41,58,.08)";
-      setTimeout(() => {
-        input.style.borderColor = "";
-        input.style.background  = "";
-      }, 1200);
+      inp.style.borderColor = "#e8293a"; inp.style.background = "rgba(232,41,58,.08)";
+      setTimeout(() => { inp.style.borderColor = ""; inp.style.background = ""; }, 1200);
       return;
     }
-
     const routes = loadSavedRoutes();
     routes.unshift({
-      id:        Date.now(),
-      name:      name,
-      stops:     JSON.parse(JSON.stringify(stops)),      // deep copy
-      savedAt:   new Date().toISOString()
+      id: Date.now(), name,
+      stops: stops.map(s => ({ coord: s.coord, address: s.address })),
+      savedAt: new Date().toISOString()
     });
-    persistRoutes(routes);
-    refreshBadge();
-    closeSaveModal();
-
-    showPill("Route saved ✓");
-    setTimeout(hidePill, 1800);
+    persistRoutes(routes); refreshBadge();
+    closeSaveModal(); showPill("Route saved ✓", 1800);
   }
 
-  // ── Open Routes Drawer ────────────────────────────────────
-  function openRoutesDrawer() {
-    renderDrawerList();
-    document.getElementById("backdrop").classList.add("open");
-    document.getElementById("routes-drawer").classList.add("open");
-  }
+  // ─── ROUTES DRAWER ────────────────────────────────────────────────────
+  function openRoutesDrawer()  { renderDrawerList(); document.getElementById("backdrop").classList.add("open"); document.getElementById("routes-drawer").classList.add("open"); }
+  function closeRoutesDrawer() { document.getElementById("backdrop").classList.remove("open"); document.getElementById("routes-drawer").classList.remove("open"); }
+  function closeAll()          { closeSaveModal(); closeRoutesDrawer(); }
 
-  function closeRoutesDrawer() {
-    document.getElementById("backdrop").classList.remove("open");
-    document.getElementById("routes-drawer").classList.remove("open");
-  }
-
-  function closeAll() {
-    closeSaveModal();
-    closeRoutesDrawer();
-  }
-
-  // ── Render drawer list ────────────────────────────────────
   function renderDrawerList() {
-    const routes  = loadSavedRoutes();
-    const listEl  = document.getElementById("drawer-list");
-
-    if (routes.length === 0) {
-      listEl.innerHTML = `<div class="drawer-empty">
-        <strong>No saved routes</strong>
-        Build a route and tap Save
-      </div>`;
+    const routes = loadSavedRoutes();
+    const listEl = document.getElementById("drawer-list");
+    if (!routes.length) {
+      listEl.innerHTML = `<div class="drawer-empty"><strong>No saved routes</strong>Build a route and tap Save</div>`;
       return;
     }
-
     listEl.innerHTML = routes.map(r => {
-      const d    = new Date(r.savedAt);
-      const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      const date = new Date(r.savedAt).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
       const cnt  = r.stops.length;
       return `<div class="route-card" id="rc-${r.id}">
         <div class="route-icon">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
         <div class="route-info">
           <div class="route-name">${escHtml(r.name)}</div>
-          <div class="route-meta">${cnt} stop${cnt !== 1 ? "s" : ""} · ${date}</div>
+          <div class="route-meta">${cnt} stop${cnt!==1?"s":""} · ${date}</div>
         </div>
         <div class="route-actions">
           <button class="route-btn load" onclick="loadRoute(${r.id})" title="Load route">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="1 4 1 10 7 10"/>
-              <path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
-            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
           </button>
-          <button class="route-btn del" onclick="askDeleteRoute(${r.id})" title="Delete route">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14H6L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-              <path d="M9 6V4h6v2"/>
-            </svg>
+          <button class="route-btn del" onclick="askDeleteRoute(${r.id})" title="Delete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           </button>
+        </div>
+        <div class="route-confirm">
+          <span>Delete "${escHtml(r.name)}"?</span>
+          <button class="route-confirm-no"  onclick="cancelDelete(${r.id})">Keep</button>
+          <button class="route-confirm-yes" onclick="confirmDelete(${r.id})">Delete</button>
         </div>
       </div>`;
     }).join("");
   }
 
   function escHtml(s) {
-    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
 
-  // ── Load a route onto the map ─────────────────────────────
-  function loadRoute(id) {
-    const routes = loadSavedRoutes();
-    const route  = routes.find(r => r.id === id);
+  async function loadRoute(id) {
+    const route = loadSavedRoutes().find(r => r.id === id);
     if (!route) return;
-
-    clearAll();
-    route.stops.forEach(coord => pushStop(coord));
+    clearAll(); closeRoutesDrawer();
+    for (const s of route.stops) await pushStop(s.coord, s.address);
     optimizeRoute();
-    closeRoutesDrawer();
-
-    showPill(`Loaded: ${route.name}`);
-    setTimeout(hidePill, 2000);
+    showPill(`Loaded: ${route.name}`, 2200);
   }
 
-  // ── Delete with confirm ───────────────────────────────────
   function askDeleteRoute(id) {
-    // Close any other confirms
-    document.querySelectorAll(".route-card.confirming").forEach(el => {
-      el.classList.remove("confirming");
-      const conf = el.querySelector(".route-confirm");
-      if (conf) conf.remove();
-    });
-
-    const card = document.getElementById(`rc-${id}`);
-    if (!card) return;
-    card.classList.add("confirming");
-
-    const conf = document.createElement("div");
-    conf.className = "route-confirm";
-    conf.innerHTML = `
-      <span>Delete this route?</span>
-      <button class="route-confirm-no" onclick="cancelDelete(${id})">Keep</button>
-      <button class="route-confirm-yes" onclick="confirmDelete(${id})">Delete</button>
-    `;
-    card.appendChild(conf);
+    document.querySelectorAll(".route-card.confirming").forEach(el => el.classList.remove("confirming"));
+    document.getElementById(`rc-${id}`)?.classList.add("confirming");
   }
+  function cancelDelete(id)  { document.getElementById(`rc-${id}`)?.classList.remove("confirming"); }
+  function confirmDelete(id) { persistRoutes(loadSavedRoutes().filter(r => r.id !== id)); refreshBadge(); renderDrawerList(); }
 
-  function cancelDelete(id) {
-    const card = document.getElementById(`rc-${id}`);
-    if (!card) return;
-    card.classList.remove("confirming");
-    const conf = card.querySelector(".route-confirm");
-    if (conf) conf.remove();
-  }
-
-  function confirmDelete(id) {
-    let routes = loadSavedRoutes();
-    routes = routes.filter(r => r.id !== id);
-    persistRoutes(routes);
-    refreshBadge();
-    renderDrawerList();
-  }
-
-  // ── Init badge on load ────────────────────────────────────
+  // ─── BOOT ─────────────────────────────────────────────────────────────
   refreshBadge();
 
-  // ── Prevent scroll in pin mode ────────────────────────────
+  // Contain touch scroll inside the stops list — don't bleed through to map
+  document.getElementById("stops-wrap").addEventListener("touchmove", e => {
+    e.stopPropagation();
+  }, { passive: true });
+
   document.getElementById("map").addEventListener("touchmove", e => {
     if (!pinMode) return;
     e.preventDefault();
