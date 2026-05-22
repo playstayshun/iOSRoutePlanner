@@ -76,7 +76,7 @@
     #panel {
       flex: 0 0 auto; background: var(--surface); border-top: 1px solid var(--border);
       display: flex; flex-direction: column;
-      padding-bottom: var(--safe-b); max-height: 48vh;
+      padding-bottom: var(--safe-b); max-height: 52vh;
     }
     #drag-handle {
       width: 36px; height: 4px; background: var(--raised2);
@@ -142,7 +142,7 @@
     #btn-add:active { background: var(--red-dim); transform: scale(.96); }
 
     /* ── ACTION ROW ──────────────────────────────────── */
-    #action-row { display: flex; gap: 8px; padding: 0 16px 10px; flex-shrink: 0; }
+    #action-row { display: flex; gap: 8px; padding: 0 16px 8px; flex-shrink: 0; }
 
     .action-btn {
       flex: 1; height: 44px;
@@ -162,20 +162,74 @@
     #btn-save-route.has-stops { color: var(--text); border-color: rgba(255,180,0,.25); }
     #btn-clear:active { background: rgba(255,100,80,.08); border-color: rgba(255,100,80,.4); color: #ff6450; }
 
+    /* ── APPLE MAPS ROW ──────────────────────────────── */
+    #maps-row {
+      padding: 0 16px 10px; flex-shrink: 0;
+      display: none; /* shown via JS when stops exist */
+    }
+    #btn-apple-maps {
+      width: 100%; height: 48px;
+      background: linear-gradient(135deg, #1a4a7a 0%, #1a6eb5 100%);
+      border: 1px solid rgba(26,110,181,.4);
+      border-radius: var(--radius); color: #fff;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px;
+      transition: opacity .15s, transform .1s, filter .15s;
+      -webkit-tap-highlight-color: transparent; -webkit-appearance: none;
+      box-shadow: 0 2px 14px rgba(26,110,181,.25);
+    }
+    #btn-apple-maps:active { transform: scale(.97); filter: brightness(.9); }
+    #btn-apple-maps .maps-icon {
+      width: 20px; height: 20px; flex-shrink: 0;
+      background: #fff; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #btn-apple-maps .maps-icon svg { display: block; }
+
+    /* Restored start banner */
+    #start-banner {
+      margin: 0 16px 8px;
+      background: rgba(255, 180, 0, .08);
+      border: 1px solid rgba(255, 180, 0, .22);
+      border-radius: 10px;
+      padding: 9px 13px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    #start-banner.show { display: flex; }
+    #start-banner svg { color: #ffb400; flex-shrink: 0; }
+    #start-banner-text {
+      flex: 1; min-width: 0;
+      font-size: 12px; color: rgba(255,180,0,.85); line-height: 1.4;
+    }
+    #start-banner-text strong { display: block; font-size: 12px; font-weight: 600; margin-bottom: 1px; color: #ffb400; }
+    #btn-use-gps {
+      flex-shrink: 0; padding: 5px 10px;
+      background: var(--raised2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+      cursor: pointer; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    #btn-use-gps:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+
     /* ── STOPS LIST ──────────────────────────────────── */
-    /* outer is relative so the fade pseudo-element can overlay it */
     #stops-outer { flex: 1; min-height: 0; position: relative; }
 
     #stops-wrap {
       height: 100%; overflow-y: auto; overflow-x: hidden;
       padding: 2px 16px 8px;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;   /* don't let scroll bleed to map */
-      touch-action: pan-y;            /* iOS: treat as vertical scroll area */
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
     #stops-wrap::-webkit-scrollbar { display: none; }
 
-    /* Bottom fade — shows when list overflows */
     #stops-outer::after {
       content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 28px;
       background: linear-gradient(to bottom, transparent, var(--surface));
@@ -183,7 +237,6 @@
     }
     #stops-outer.overflows::after { opacity: 1; }
 
-    /* Label row */
     #stops-label {
       display: none;
       font-family: 'Barlow Condensed', sans-serif;
@@ -218,15 +271,11 @@
     }
 
     .stop-meta { flex: 1; min-width: 0; }
-
-    /* Address = primary text */
     .stop-addr {
       display: block; font-size: 13px; font-weight: 500; color: var(--text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;
     }
     .stop-addr.loading { color: var(--muted); font-style: italic; }
-
-    /* Coordinates = secondary hint */
     .stop-coord { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
 
     .stop-remove {
@@ -292,6 +341,43 @@
     }
     .modal-input::placeholder { color: var(--muted); }
     .modal-input:focus { border-color: var(--red); background: var(--raised2); }
+
+    /* ── SAVE START TOGGLE ───────────────────────────── */
+    .modal-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--raised); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      margin-bottom: 16px; gap: 12px;
+    }
+    .modal-toggle-label { flex: 1; }
+    .modal-toggle-label span {
+      display: block; font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3;
+    }
+    .modal-toggle-label small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+
+    /* iOS-style toggle */
+    .ios-toggle { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+    .ios-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .ios-toggle-track {
+      position: absolute; inset: 0; border-radius: 13px;
+      background: var(--raised2); border: 1px solid var(--border);
+      transition: background .2s, border-color .2s;
+      cursor: pointer;
+    }
+    .ios-toggle-track::after {
+      content: ''; position: absolute;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--muted); top: 2px; left: 2px;
+      transition: transform .2s cubic-bezier(.34,1.56,.64,1), background .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+    .ios-toggle input:checked + .ios-toggle-track {
+      background: var(--red); border-color: var(--red-dim);
+    }
+    .ios-toggle input:checked + .ios-toggle-track::after {
+      transform: translateX(18px); background: #fff;
+    }
+
     .modal-btns { display: flex; gap: 10px; }
     .modal-btn-cancel {
       flex: 1; height: 50px; background: var(--raised); border: 1px solid var(--border);
@@ -346,8 +432,15 @@
     .route-card:last-child { border-bottom: none; }
     .route-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--red-soft); border: 1px solid var(--border-r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--red); }
     .route-info { flex: 1; min-width: 0; }
-    .route-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-    .route-meta { font-size: 12px; color: var(--muted); }
+    .route-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+    .route-meta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .route-start-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(255,180,0,.1); border: 1px solid rgba(255,180,0,.2);
+      border-radius: 4px; padding: 1px 6px;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase; color: #ffb400;
+    }
     .route-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .route-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--raised); color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s, transform .1s; }
     .route-btn:active { transform: scale(.93); }
@@ -383,6 +476,16 @@
     </div>
   </div>
 
+  <!-- Saved-start restored banner -->
+  <div id="start-banner">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div id="start-banner-text">
+      <strong>Using Saved Start Location</strong>
+      This route has a fixed start point.
+    </div>
+    <button id="btn-use-gps" onclick="switchToGPS()">Use GPS</button>
+  </div>
+
   <div id="input-row">
     <input id="address" type="text" inputmode="search" placeholder="Search address…"
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -409,6 +512,19 @@
     </button>
   </div>
 
+  <!-- Apple Maps / Google Maps launch row -->
+  <div id="maps-row">
+    <button id="btn-apple-maps" onclick="openInMaps()">
+      <div class="maps-icon">
+        <!-- Simple map pin icon in blue brand style -->
+        <svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 0C3.24 0 1 2.24 1 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 6 3.5 1.5 1.5 0 0 1 6 6.5z" fill="#1a6eb5"/>
+        </svg>
+      </div>
+      Open in Apple Maps — Optimized Order
+    </button>
+  </div>
+
   <div id="stops-outer">
     <div id="stops-wrap">
       <div id="stops-label">Stops</div>
@@ -430,6 +546,19 @@
          placeholder="e.g. Morning deliveries…"
          autocomplete="off" autocorrect="off" spellcheck="false" maxlength="48"
          onkeydown="if(event.key==='Enter'){this.blur();confirmSaveRoute()}" />
+
+  <!-- Optional: save start location -->
+  <div class="modal-toggle-row">
+    <div class="modal-toggle-label">
+      <span>Save start location</span>
+      <small>Resume from this exact starting point later</small>
+    </div>
+    <label class="ios-toggle">
+      <input type="checkbox" id="save-start-toggle" />
+      <span class="ios-toggle-track"></span>
+    </label>
+  </div>
+
   <div class="modal-btns">
     <button class="modal-btn-cancel" onclick="closeSaveModal()">Cancel</button>
     <button class="modal-btn-confirm" onclick="confirmSaveRoute()">Save Route</button>
@@ -451,15 +580,14 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   // ─── STATE ────────────────────────────────────────────────────────────
-  // stops[] = [{coord:[lat,lng], address:"short str", routePos:0}]
-  // routePos 0 = pending; 1+ = optimized order position
-  let start       = null;
-  let stops       = [];
-  let markers     = [];
-  let routeLine   = null;
-  let darkMode    = true;
-  let pinMode     = false;
-  let optimizeGen = 0; // bumped on clearAll — any in-flight optimize sees a stale gen and aborts
+  let start           = null;   // [lat, lng] — current GPS or saved override
+  let savedStartCoord = null;   // set when a route with a saved start is loaded
+  let stops           = [];
+  let markers         = [];
+  let routeLine       = null;
+  let darkMode        = true;
+  let pinMode         = false;
+  let optimizeGen     = 0;
 
   // ─── MAP ──────────────────────────────────────────────────────────────
   const map = L.map("map", { tap: false, zoomControl: true, attributionControl: true })
@@ -525,16 +653,42 @@
   map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
   // ─── GEOLOCATION ──────────────────────────────────────────────────────
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      start = [pos.coords.latitude, pos.coords.longitude];
-      map.setView(start, 14);
-      L.marker(start, { icon: makePin("●", "#ff9500", "#fff") })
-        .addTo(map).bindPopup("<b>You are here</b>");
-    },
-    () => alert("Location access is required to plan routes."),
-    { enableHighAccuracy: true }
-  );
+  let gpsWatcher = null;
+
+  function startGPS() {
+    if (gpsWatcher !== null) return;
+    gpsWatcher = navigator.geolocation.watchPosition(
+      pos => {
+        if (savedStartCoord) return; // saved-start override active — ignore GPS updates
+        const coord = [pos.coords.latitude, pos.coords.longitude];
+        const isFirst = !start;
+        start = coord;
+        if (isFirst) {
+          map.setView(start, 14);
+          L.marker(start, { icon: makePin("●", "#ff9500", "#fff") })
+            .addTo(map).bindPopup("<b>You are here</b>");
+        }
+      },
+      () => alert("Location access is required to plan routes."),
+      { enableHighAccuracy: true }
+    );
+  }
+
+  startGPS();
+
+  // Switch back to live GPS after a saved-start was applied
+  function switchToGPS() {
+    savedStartCoord = null;
+    document.getElementById("start-banner").classList.remove("show");
+    if (gpsWatcher !== null) {
+      navigator.geolocation.clearWatch(gpsWatcher);
+      gpsWatcher = null;
+    }
+    start = null; // will be refreshed by a new watch
+    startGPS();
+    showPill("Switched to live GPS", 2000);
+    if (stops.length > 0) optimizeRoute();
+  }
 
   // ─── REVERSE GEOCODE ──────────────────────────────────────────────────
   async function reverseGeocode(lat, lng) {
@@ -572,10 +726,8 @@
   }
 
   function shortenAddress(display) {
-    // Nominatim display_name: "123 Main St, Suburb, City, County, State, ZIP, Country"
-    // We want "123 Main St, City" — take first 2 meaningful parts
     const parts = display.split(",").map(s => s.trim())
-      .filter(p => p.length > 1 && !/^\d{4,}$/.test(p)); // drop bare ZIP codes
+      .filter(p => p.length > 1 && !/^\d{4,}$/.test(p));
     return parts.slice(0, 2).join(", ");
   }
 
@@ -588,7 +740,7 @@
     btn.textContent = "…"; btn.style.opacity = ".55";
     try {
       const { coord, display } = await geocode(val);
-      pushStop(coord, shortenAddress(display)); // address known — skip reverse geocode
+      pushStop(coord, shortenAddress(display));
       input.value = "";
       optimizeRoute();
     } catch {
@@ -601,8 +753,6 @@
   }
 
   // ─── PUSH STOP ────────────────────────────────────────────────────────
-  // knownAddress = string → use it directly
-  // null → show "Locating…" then reverse-geocode async
   async function pushStop(coord, knownAddress) {
     const stopObj = { coord, address: knownAddress || "Locating…", routePos: 0 };
     stops.push(stopObj);
@@ -612,7 +762,7 @@
     markers.push(m);
 
     document.getElementById("empty-state").style.display = "none";
-    updateSaveBtn(); renderStops();
+    updateSaveBtn(); updateMapsRow(); renderStops();
 
     if (!knownAddress) {
       const addr = await reverseGeocode(coord[0], coord[1]);
@@ -631,21 +781,18 @@
       clearPolyline();
       document.getElementById("empty-state").style.display = "";
     } else {
-      stops.forEach(s => s.routePos = 0); // reset; next optimize will reassign
+      stops.forEach(s => s.routePos = 0);
       optimizeRoute();
     }
-    updateSaveBtn(); renderStops();
+    updateSaveBtn(); updateMapsRow(); renderStops();
   }
 
   // ─── RENDER STOP LIST ─────────────────────────────────────────────────
   function renderStops() {
     const isOptimized = stops.some(s => s.routePos > 0);
-
-    // Build indexed copy and sort by route position when optimized
     const items = stops.map((s, i) => ({ ...s, _i: i }));
     if (isOptimized) items.sort((a, b) => a.routePos - b.routePos);
 
-    // Section label
     const lbl = document.getElementById("stops-label");
     lbl.style.display = stops.length ? "flex" : "none";
     lbl.textContent   = isOptimized ? "Optimized Order" : "Stops";
@@ -664,7 +811,6 @@
         </button>
       </div>`).join("");
 
-    // Show fade indicator if list is taller than its container
     const wrap = document.getElementById("stops-wrap");
     document.getElementById("stops-outer")
       .classList.toggle("overflows", wrap.scrollHeight > wrap.clientHeight + 4);
@@ -677,7 +823,7 @@
 
   // ─── CLEAR ALL ────────────────────────────────────────────────────────
   function clearAll() {
-    optimizeGen++;                           // ← makes any in-flight optimizeRoute() bail out
+    optimizeGen++;
     clearPolyline();
     markers.forEach(m => map.removeLayer(m));
     markers = []; stops = [];
@@ -685,13 +831,13 @@
     document.getElementById("empty-state").style.display = "";
     document.getElementById("stops-label").style.display  = "none";
     document.getElementById("stops-outer").classList.remove("overflows");
-    updateSaveBtn();
+    updateSaveBtn(); updateMapsRow();
   }
 
   // ─── OPTIMIZE ROUTE ───────────────────────────────────────────────────
   async function optimizeRoute() {
     if (!start || stops.length === 0) return;
-    const myGen = optimizeGen;              // snapshot
+    const myGen = optimizeGen;
     clearPolyline();
 
     const coords = [start, ...stops.map(s => s.coord)].map(c => `${c[1]},${c[0]}`).join(";");
@@ -700,7 +846,7 @@
         `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
       ).then(r => r.json());
 
-      if (optimizeGen !== myGen) return;   // clearAll() fired while we were waiting → discard
+      if (optimizeGen !== myGen) return;
       if (!data.trips) return;
 
       stops.forEach((s, i) => { s.routePos = data.waypoints[i + 1].waypoint_index; });
@@ -708,7 +854,7 @@
       stops.forEach(s => s.routePos = s.routePos - minPos + 1);
 
       markers.forEach((m, i) => m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff")));
-      renderStops();
+      renderStops(); updateMapsRow();
 
       const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
       routeLine = L.polyline(pts, { color:"#e8293a", weight:4.5, opacity:.9, lineCap:"round", lineJoin:"round" }).addTo(map);
@@ -729,8 +875,64 @@
     document.getElementById("btn-save-route").classList.toggle("has-stops", stops.length > 0);
   }
 
+  function updateMapsRow() {
+    document.getElementById("maps-row").style.display = stops.length > 0 ? "block" : "none";
+  }
+
+  // ─── OPEN IN APPLE MAPS ───────────────────────────────────────────────
+  // Builds a maps:// URL with source → sorted waypoints.
+  // Apple Maps (iOS 10+) supports multiple &daddr= parameters for waypoints.
+  // On non-iOS devices falls back to Google Maps directions URL.
+  function openInMaps() {
+    if (!stops.length) { showPill("Add stops first", 1800); return; }
+
+    const sortedStops = [...stops].sort((a, b) => a.routePos - b.routePos);
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+      // Apple Maps multi-waypoint URL scheme
+      let url = "maps://?";
+
+      if (start) {
+        url += `saddr=${start[0]},${start[1]}`;
+        const daddrs = sortedStops.map(s => `${s.coord[0]},${s.coord[1]}`).join("&daddr=");
+        url += `&daddr=${daddrs}`;
+      } else {
+        // No known start — use first stop as saddr, rest as daddr
+        const [first, ...rest] = sortedStops;
+        url += `saddr=${first.coord[0]},${first.coord[1]}`;
+        if (rest.length > 0) {
+          const daddrs = rest.map(s => `${s.coord[0]},${s.coord[1]}`).join("&daddr=");
+          url += `&daddr=${daddrs}`;
+        }
+      }
+
+      url += "&dirflg=d"; // driving directions
+      window.location.href = url;
+    } else {
+      // Non-iOS fallback: Google Maps directions with waypoints
+      const waypointCoords = sortedStops.map(s => `${s.coord[0]},${s.coord[1]}`);
+      let gmUrl;
+      if (start) {
+        const origin = `${start[0]},${start[1]}`;
+        const dest   = waypointCoords[waypointCoords.length - 1];
+        const wps    = waypointCoords.slice(0, -1).join("|");
+        gmUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}` +
+                (wps ? `&waypoints=${encodeURIComponent(wps)}` : "") + "&travelmode=driving";
+      } else {
+        const dest = waypointCoords[waypointCoords.length - 1];
+        const wps  = waypointCoords.slice(0, -1).join("|");
+        gmUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}` +
+                (wps ? `&waypoints=${encodeURIComponent(wps)}` : "") + "&travelmode=driving";
+      }
+      window.open(gmUrl, "_blank");
+    }
+  }
+
   // ─── SAVED ROUTES (localStorage) ─────────────────────────────────────
-  const LS_KEY = "rr_saved_routes_v2";
+  const LS_KEY = "rr_saved_routes_v3"; // v3 — adds savedStart field
   function loadSavedRoutes() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; } }
   function persistRoutes(r)  { localStorage.setItem(LS_KEY, JSON.stringify(r)); }
 
@@ -748,6 +950,8 @@
       `${stops.length} stop${stops.length !== 1 ? "s" : ""} will be saved`;
     const inp = document.getElementById("route-name-input");
     inp.value = "";
+    // Pre-check the toggle if we have a start; default unchecked
+    document.getElementById("save-start-toggle").checked = false;
     document.getElementById("backdrop").classList.add("open");
     document.getElementById("save-modal").classList.add("open");
     setTimeout(() => inp.focus(), 350);
@@ -765,14 +969,17 @@
       setTimeout(() => { inp.style.borderColor = ""; inp.style.background = ""; }, 1200);
       return;
     }
+    const saveStart = document.getElementById("save-start-toggle").checked;
     const routes = loadSavedRoutes();
     routes.unshift({
       id: Date.now(), name,
       stops: stops.map(s => ({ coord: s.coord, address: s.address })),
+      savedStart: saveStart && start ? start : null,
       savedAt: new Date().toISOString()
     });
     persistRoutes(routes); refreshBadge();
-    closeSaveModal(); showPill("Route saved ✓", 1800);
+    closeSaveModal();
+    showPill(saveStart ? "Route + start location saved ✓" : "Route saved ✓", 2000);
   }
 
   // ─── ROUTES DRAWER ────────────────────────────────────────────────────
@@ -788,15 +995,21 @@
       return;
     }
     listEl.innerHTML = routes.map(r => {
-      const date = new Date(r.savedAt).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
-      const cnt  = r.stops.length;
+      const date  = new Date(r.savedAt).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+      const cnt   = r.stops.length;
+      const badge = r.savedStart
+        ? `<span class="route-start-badge">
+             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+             Fixed start
+           </span>`
+        : "";
       return `<div class="route-card" id="rc-${r.id}">
         <div class="route-icon">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
         <div class="route-info">
           <div class="route-name">${escHtml(r.name)}</div>
-          <div class="route-meta">${cnt} stop${cnt!==1?"s":""} · ${date}</div>
+          <div class="route-meta">${cnt} stop${cnt!==1?"s":""} · ${date} ${badge}</div>
         </div>
         <div class="route-actions">
           <button class="route-btn load" onclick="loadRoute(${r.id})" title="Load route">
@@ -822,10 +1035,29 @@
   async function loadRoute(id) {
     const route = loadSavedRoutes().find(r => r.id === id);
     if (!route) return;
-    clearAll(); closeRoutesDrawer();
+
+    clearAll();
+    closeRoutesDrawer();
+
+    // If route has a saved start, apply it and suppress GPS overrides
+    if (route.savedStart) {
+      savedStartCoord = route.savedStart;
+      start = route.savedStart;
+      map.setView(start, 14);
+      // Show a pin for the saved start
+      L.marker(start, { icon: makePin("S", "#ffb400", "#fff") })
+        .addTo(map).bindPopup("<b>Saved start point</b>");
+      document.getElementById("start-banner").classList.add("show");
+    } else {
+      savedStartCoord = null;
+      document.getElementById("start-banner").classList.remove("show");
+    }
+
     for (const s of route.stops) await pushStop(s.coord, s.address);
     optimizeRoute();
-    showPill(`Loaded: ${route.name}`, 2200);
+
+    const startNote = route.savedStart ? " (saved start)" : "";
+    showPill(`Loaded: ${route.name}${startNote}`, 2400);
   }
 
   function askDeleteRoute(id) {
@@ -838,7 +1070,6 @@
   // ─── BOOT ─────────────────────────────────────────────────────────────
   refreshBadge();
 
-  // Contain touch scroll inside the stops list — don't bleed through to map
   document.getElementById("stops-wrap").addEventListener("touchmove", e => {
     e.stopPropagation();
   }, { passive: true });
