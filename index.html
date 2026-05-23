@@ -19,6 +19,8 @@
       --red:      #e8293a;
       --red-dim:  #b01e2b;
       --red-soft: rgba(232,41,58,.10);
+      --green:    #00c864;
+      --green-dim:#00a854;
       --bg:       #0f0a0a;
       --surface:  #170d0d;
       --raised:   #201212;
@@ -29,6 +31,7 @@
       --muted:    #6b5555;
       --radius:   12px;
       --safe-b:   env(safe-area-inset-bottom, 0px);
+      --safe-t:   env(safe-area-inset-top, 0px);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,7 +46,7 @@
     }
 
     /* ── MAP ─────────────────────────────────────────── */
-    #map-wrap { position: relative; flex: 1 1 0; min-height: 0; }
+    #map-wrap { position: relative; flex: 1 1 0; min-height: 0; transition: flex .3s ease; }
     #map { height: 100%; width: 100%; }
 
     .leaflet-control-attribution {
@@ -61,8 +64,8 @@
     #map.pin-mode { outline: 2.5px solid var(--red); outline-offset: -2px; }
 
     #status-pill {
-      position: absolute; top: 12px; left: 50%;
-      transform: translateX(-50%) translateY(-6px); z-index: 900;
+      position: absolute; top: calc(12px + var(--safe-t)); left: 50%;
+      transform: translateX(-50%) translateY(-6px); z-index: 1001;
       background: var(--red); color: #fff;
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
@@ -77,6 +80,7 @@
       flex: 0 0 auto; background: var(--surface); border-top: 1px solid var(--border);
       display: flex; flex-direction: column;
       padding-bottom: var(--safe-b); max-height: 52vh;
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
     }
     #drag-handle {
       width: 36px; height: 4px; background: var(--raised2);
@@ -157,37 +161,56 @@
     .action-btn:active { transform: scale(.96); }
 
     #btn-pin.active, #btn-pin:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
-    #btn-optimize:active { background: rgba(0,200,100,.08); border-color: rgba(0,200,100,.4); color: #00c864; }
+    #btn-optimize:active { background: rgba(0,200,100,.08); border-color: rgba(0,200,100,.4); color: var(--green); }
     #btn-save-route:active { background: rgba(255,180,0,.08); border-color: rgba(255,180,0,.4); color: #ffb400; }
     #btn-save-route.has-stops { color: var(--text); border-color: rgba(255,180,0,.25); }
     #btn-clear:active { background: rgba(255,100,80,.08); border-color: rgba(255,100,80,.4); color: #ff6450; }
 
-    /* ── APPLE MAPS ROW ──────────────────────────────── */
-    #maps-row {
+    /* ── NAVIGATION ROW & OVERLAY ────────────────────── */
+    #nav-row {
       padding: 0 16px 10px; flex-shrink: 0;
       display: none; /* shown via JS when stops exist */
     }
-    #btn-apple-maps {
+    #btn-start-nav {
       width: 100%; height: 48px;
-      background: linear-gradient(135deg, #1a4a7a 0%, #1a6eb5 100%);
-      border: 1px solid rgba(26,110,181,.4);
-      border-radius: var(--radius); color: #fff;
+      background: var(--green); border: none;
+      border-radius: var(--radius); color: #0f0a0a;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px;
-      transition: opacity .15s, transform .1s, filter .15s;
+      font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity .15s, transform .1s, background .15s;
       -webkit-tap-highlight-color: transparent; -webkit-appearance: none;
-      box-shadow: 0 2px 14px rgba(26,110,181,.25);
+      box-shadow: 0 4px 14px rgba(0,200,100,.15);
     }
-    #btn-apple-maps:active { transform: scale(.97); filter: brightness(.9); }
-    #btn-apple-maps .maps-icon {
-      width: 20px; height: 20px; flex-shrink: 0;
-      background: #fff; border-radius: 5px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    #btn-apple-maps .maps-icon svg { display: block; }
+    #btn-start-nav:active { transform: scale(.97); background: var(--green-dim); }
 
-    /* Restored start banner */
+    #nav-overlay {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: calc(16px + var(--safe-t)) 20px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      transform: translateY(-100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+      box-shadow: 0 4px 24px rgba(0,0,0,.5);
+    }
+    #nav-overlay.active { transform: translateY(0); }
+    .nav-info { flex: 1; min-width: 0; }
+    .nav-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .nav-address { font-size: 18px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+    .nav-distance { font-size: 14px; color: var(--muted); margin-top: 4px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+
+    .nav-btn-end {
+      width: 48px; height: 48px; border-radius: 14px; background: rgba(232,41,58,.1);
+      border: 1px solid rgba(232,41,58,.3); color: var(--red); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: background .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-btn-end:active { background: rgba(232,41,58,.25); transform: scale(.94); }
+
+    /* Navigating State Overrides */
+    body.navigating #panel { display: none !important; }
+    body.navigating .leaflet-control-zoom { display: none; }
+
+    /* Saved start banner */
     #start-banner {
       margin: 0 16px 8px;
       background: rgba(255, 180, 0, .08);
@@ -297,7 +320,7 @@
       color: var(--raised2); margin-bottom: 2px;
     }
 
-    /* ── CUSTOM PIN ──────────────────────────────────── */
+    /* ── CUSTOM PINS ─────────────────────────────────── */
     .rr-pin { position: relative; width: 30px; height: 38px; }
     .rr-pin-body {
       position: absolute; inset: 0; border-radius: 50% 50% 50% 0;
@@ -455,6 +478,17 @@
 </head>
 <body>
 
+<div id="nav-overlay">
+  <div class="nav-info">
+    <div class="nav-title" id="nav-title">Navigation Info</div>
+    <div class="nav-address" id="nav-address">Locating...</div>
+    <div class="nav-distance" id="nav-distance">--</div>
+  </div>
+  <button class="nav-btn-end" onclick="stopNavigation()" aria-label="End Navigation" title="End Navigation">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+</div>
+
 <div id="map-wrap">
   <div id="status-pill"></div>
   <div id="map"></div>
@@ -476,7 +510,6 @@
     </div>
   </div>
 
-  <!-- Saved-start restored banner -->
   <div id="start-banner">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <div id="start-banner-text">
@@ -512,16 +545,10 @@
     </button>
   </div>
 
-  <!-- Apple Maps / Google Maps launch row -->
-  <div id="maps-row">
-    <button id="btn-apple-maps" onclick="openInMaps()">
-      <div class="maps-icon">
-        <!-- Simple map pin icon in blue brand style -->
-        <svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M6 0C3.24 0 1 2.24 1 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 6 3.5 1.5 1.5 0 0 1 6 6.5z" fill="#1a6eb5"/>
-        </svg>
-      </div>
-      Open in Apple Maps — Optimized Order
+  <div id="nav-row">
+    <button id="btn-start-nav" onclick="startNavigation()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      Start Navigation
     </button>
   </div>
 
@@ -534,10 +561,8 @@
   </div>
 </div>
 
-<!-- Backdrop -->
 <div id="backdrop" class="sheet-backdrop" onclick="closeAll()"></div>
 
-<!-- Save Modal -->
 <div id="save-modal">
   <div class="modal-handle"></div>
   <div class="modal-title">Save Route</div>
@@ -547,7 +572,6 @@
          autocomplete="off" autocorrect="off" spellcheck="false" maxlength="48"
          onkeydown="if(event.key==='Enter'){this.blur();confirmSaveRoute()}" />
 
-  <!-- Optional: save start location -->
   <div class="modal-toggle-row">
     <div class="modal-toggle-label">
       <span>Save start location</span>
@@ -565,7 +589,6 @@
   </div>
 </div>
 
-<!-- Routes Drawer -->
 <div id="routes-drawer">
   <div class="drawer-handle"></div>
   <div class="drawer-header">
@@ -588,6 +611,12 @@
   let darkMode        = true;
   let pinMode         = false;
   let optimizeGen     = 0;
+
+  // Navigation State
+  let isNavigating    = false;
+  let currentNavIndex = 0;
+  let sortedNavStops  = [];
+  let userMarker      = null;
 
   // ─── MAP ──────────────────────────────────────────────────────────────
   const map = L.map("map", { tap: false, zoomControl: true, attributionControl: true })
@@ -652,7 +681,7 @@
   });
   map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
-  // ─── GEOLOCATION ──────────────────────────────────────────────────────
+  // ─── GEOLOCATION & NAVIGATION TRACKING ────────────────────────────────
   let gpsWatcher = null;
 
   function startGPS() {
@@ -663,10 +692,29 @@
         const coord = [pos.coords.latitude, pos.coords.longitude];
         const isFirst = !start;
         start = coord;
-        if (isFirst) {
+
+        // Render User Marker
+        if (!userMarker) {
+          userMarker = L.marker(start, {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style="width:20px;height:20px;background:#00c864;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,0.4);"></div>`,
+              iconSize: [26,26], iconAnchor: [13,13]
+            }),
+            zIndexOffset: 1000
+          }).addTo(map);
+        } else {
+          userMarker.setLatLng(start);
+        }
+
+        if (isFirst && !isNavigating) {
           map.setView(start, 14);
-          L.marker(start, { icon: makePin("●", "#ff9500", "#fff") })
-            .addTo(map).bindPopup("<b>You are here</b>");
+        }
+
+        if (isNavigating) {
+          map.panTo(start);
+          updateNavOverlay();
+          checkNavProgress();
         }
       },
       () => alert("Location access is required to plan routes."),
@@ -680,6 +728,7 @@
   function switchToGPS() {
     savedStartCoord = null;
     document.getElementById("start-banner").classList.remove("show");
+    if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
     if (gpsWatcher !== null) {
       navigator.geolocation.clearWatch(gpsWatcher);
       gpsWatcher = null;
@@ -687,7 +736,112 @@
     start = null; // will be refreshed by a new watch
     startGPS();
     showPill("Switched to live GPS", 2000);
-    if (stops.length > 0) optimizeRoute();
+    if (stops.length > 0 && !isNavigating) optimizeRoute();
+  }
+
+  // ─── NAVIGATION SYSTEM ────────────────────────────────────────────────
+  function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Earth's radius in meters
+    const rLat1 = lat1 * Math.PI/180;
+    const rLat2 = lat2 * Math.PI/180;
+    const dLat = (lat2-lat1) * Math.PI/180;
+    const dLon = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(rLat1) * Math.cos(rLat2) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function formatDistance(meters) {
+    const miles = meters / 1609.344;
+    if (miles < 0.1) {
+      const feet = Math.round(meters * 3.28084);
+      return `${feet} ft`;
+    }
+    return `${miles.toFixed(1)} mi`;
+  }
+
+  function updateNavRow() {
+    document.getElementById("nav-row").style.display = stops.length > 0 ? "block" : "none";
+  }
+
+  function startNavigation() {
+    if (!stops.length) { showPill("Add stops first", 1800); return; }
+    if (!routeLine) { showPill("Optimize route first", 1800); return; }
+
+    // Must use physical GPS for navigation
+    if (savedStartCoord) {
+      switchToGPS();
+    }
+
+    sortedNavStops = [...stops].sort((a, b) => a.routePos - b.routePos);
+    currentNavIndex = 0;
+    isNavigating = true;
+
+    document.body.classList.add("navigating");
+    document.getElementById("nav-overlay").classList.add("active");
+
+    updateNavOverlay();
+    if (start) map.setView(start, 18);
+  }
+
+  function stopNavigation() {
+    isNavigating = false;
+    document.body.classList.remove("navigating");
+    document.getElementById("nav-overlay").classList.remove("active");
+    if (routeLine) map.fitBounds(routeLine.getBounds(), { padding: [28,28] });
+    
+    // Reset marker icons back to red optimized state
+    markers.forEach((m, i) => {
+      m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff"));
+    });
+  }
+
+  function updateNavOverlay() {
+    if (!isNavigating) return;
+
+    if (currentNavIndex >= sortedNavStops.length) {
+      document.getElementById("nav-title").textContent = "Route Complete";
+      document.getElementById("nav-address").textContent = "All stops reached";
+      document.getElementById("nav-distance").textContent = "✓";
+      return;
+    }
+
+    const target = sortedNavStops[currentNavIndex];
+    document.getElementById("nav-title").textContent = `Heading to Stop ${target.routePos}`;
+    document.getElementById("nav-address").textContent = target.address;
+
+    if (start) {
+      const dist = haversineDistance(start[0], start[1], target.coord[0], target.coord[1]);
+      document.getElementById("nav-distance").textContent = formatDistance(dist);
+    }
+  }
+
+  function checkNavProgress() {
+    if (currentNavIndex >= sortedNavStops.length) return;
+    const target = sortedNavStops[currentNavIndex];
+    const dist = haversineDistance(start[0], start[1], target.coord[0], target.coord[1]);
+
+    if (dist < 40) { // arrived within ~130 feet
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      showPill(`Arrived at Stop ${target.routePos}`, 3000);
+      
+      // Visually check off the marker on map
+      const stopMarkerIndex = stops.findIndex(s => s === target);
+      if (stopMarkerIndex !== -1 && markers[stopMarkerIndex]) {
+         markers[stopMarkerIndex].setIcon(makePin("✓", "#00c864", "#fff"));
+      }
+
+      currentNavIndex++;
+      if (currentNavIndex >= sortedNavStops.length) {
+        showPill("Route Complete!", 4000);
+        updateNavOverlay();
+        setTimeout(stopNavigation, 5000); // Auto-end after a few seconds
+      } else {
+        updateNavOverlay();
+      }
+    }
   }
 
   // ─── REVERSE GEOCODE ──────────────────────────────────────────────────
@@ -762,7 +916,7 @@
     markers.push(m);
 
     document.getElementById("empty-state").style.display = "none";
-    updateSaveBtn(); updateMapsRow(); renderStops();
+    updateSaveBtn(); updateNavRow(); renderStops();
 
     if (!knownAddress) {
       const addr = await reverseGeocode(coord[0], coord[1]);
@@ -784,7 +938,7 @@
       stops.forEach(s => s.routePos = 0);
       optimizeRoute();
     }
-    updateSaveBtn(); updateMapsRow(); renderStops();
+    updateSaveBtn(); updateNavRow(); renderStops();
   }
 
   // ─── RENDER STOP LIST ─────────────────────────────────────────────────
@@ -823,6 +977,7 @@
 
   // ─── CLEAR ALL ────────────────────────────────────────────────────────
   function clearAll() {
+    stopNavigation();
     optimizeGen++;
     clearPolyline();
     markers.forEach(m => map.removeLayer(m));
@@ -831,7 +986,7 @@
     document.getElementById("empty-state").style.display = "";
     document.getElementById("stops-label").style.display  = "none";
     document.getElementById("stops-outer").classList.remove("overflows");
-    updateSaveBtn(); updateMapsRow();
+    updateSaveBtn(); updateNavRow();
   }
 
   // ─── OPTIMIZE ROUTE ───────────────────────────────────────────────────
@@ -854,7 +1009,7 @@
       stops.forEach(s => s.routePos = s.routePos - minPos + 1);
 
       markers.forEach((m, i) => m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff")));
-      renderStops(); updateMapsRow();
+      renderStops(); updateNavRow();
 
       const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
       routeLine = L.polyline(pts, { color:"#e8293a", weight:4.5, opacity:.9, lineCap:"round", lineJoin:"round" }).addTo(map);
@@ -868,67 +1023,11 @@
     document.getElementById("btn-night").classList.toggle("active", darkMode);
     if (darkMode) { map.removeLayer(lightTiles); darkTiles.addTo(map); }
     else          { map.removeLayer(darkTiles);  lightTiles.addTo(map); }
-    if (stops.length > 0) optimizeRoute();
+    if (stops.length > 0 && !isNavigating) optimizeRoute();
   }
 
   function updateSaveBtn() {
     document.getElementById("btn-save-route").classList.toggle("has-stops", stops.length > 0);
-  }
-
-  function updateMapsRow() {
-    document.getElementById("maps-row").style.display = stops.length > 0 ? "block" : "none";
-  }
-
-  // ─── OPEN IN APPLE MAPS ───────────────────────────────────────────────
-  // Builds a maps:// URL with source → sorted waypoints.
-  // Apple Maps (iOS 10+) supports multiple &daddr= parameters for waypoints.
-  // On non-iOS devices falls back to Google Maps directions URL.
-  function openInMaps() {
-    if (!stops.length) { showPill("Add stops first", 1800); return; }
-
-    const sortedStops = [...stops].sort((a, b) => a.routePos - b.routePos);
-
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-    if (isIOS) {
-      // Apple Maps multi-waypoint URL scheme
-      let url = "maps://?";
-
-      if (start) {
-        url += `saddr=${start[0]},${start[1]}`;
-        const daddrs = sortedStops.map(s => `${s.coord[0]},${s.coord[1]}`).join("&daddr=");
-        url += `&daddr=${daddrs}`;
-      } else {
-        // No known start — use first stop as saddr, rest as daddr
-        const [first, ...rest] = sortedStops;
-        url += `saddr=${first.coord[0]},${first.coord[1]}`;
-        if (rest.length > 0) {
-          const daddrs = rest.map(s => `${s.coord[0]},${s.coord[1]}`).join("&daddr=");
-          url += `&daddr=${daddrs}`;
-        }
-      }
-
-      url += "&dirflg=d"; // driving directions
-      window.location.href = url;
-    } else {
-      // Non-iOS fallback: Google Maps directions with waypoints
-      const waypointCoords = sortedStops.map(s => `${s.coord[0]},${s.coord[1]}`);
-      let gmUrl;
-      if (start) {
-        const origin = `${start[0]},${start[1]}`;
-        const dest   = waypointCoords[waypointCoords.length - 1];
-        const wps    = waypointCoords.slice(0, -1).join("|");
-        gmUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}` +
-                (wps ? `&waypoints=${encodeURIComponent(wps)}` : "") + "&travelmode=driving";
-      } else {
-        const dest = waypointCoords[waypointCoords.length - 1];
-        const wps  = waypointCoords.slice(0, -1).join("|");
-        gmUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}` +
-                (wps ? `&waypoints=${encodeURIComponent(wps)}` : "") + "&travelmode=driving";
-      }
-      window.open(gmUrl, "_blank");
-    }
   }
 
   // ─── SAVED ROUTES (localStorage) ─────────────────────────────────────
@@ -1029,7 +1128,7 @@
   }
 
   function escHtml(s) {
-    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    return String(s).replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,"&quot;");
   }
 
   async function loadRoute(id) {
