@@ -815,20 +815,21 @@ async function startNav() {
 }
 
 async function fetchNavSteps() {
-  if (!start || !navStops.length) return;
-  const allCoords = [start, ...navStops.map(s=>s.coord)];
-  const coordStr  = allCoords.map(c=>`${c[1]},${c[0]}`).join(";");
+  if (!start || !stops.length) return;
+  // Use the SAME endpoint + coordinate order as doOptimize so steps trace
+  // the identical road-snapped geometry that is already drawn on the map.
+  const coordStr = [start, ...stops.map(s=>s.coord)].map(c=>`${c[1]},${c[0]}`).join(";");
   try {
     const data = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${coordStr}?steps=true&geometries=geojson&overview=full&annotations=false`
+      `https://router.project-osrm.org/trip/v1/driving/${coordStr}?source=first&roundtrip=false&steps=true&geometries=geojson`
     ).then(r => r.json());
 
-    if (!data.routes?.length) return;
+    if (!data.trips?.length) return;
 
-    // Flatten all legs → all steps into navSteps
+    // Flatten all legs → all steps into navSteps (trip returns legs in optimized order)
     navSteps    = [];
     let legIdx  = 0;
-    for (const leg of data.routes[0].legs) {
+    for (const leg of data.trips[0].legs) {
       for (const step of leg.steps) {
         navSteps.push({
           ...step,
