@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>SRP</title>
+<link rel="icon" type="image/png" href="https://i.ibb.co/99L8Z3HR/srplogo.png"/>
+<link rel="apple-touch-icon" href="https://i.ibb.co/99L8Z3HR/srplogo.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
@@ -242,16 +244,14 @@ body.navigating .leaflet-control-zoom { display: none; }
   padding: 0 16px 12px;
 }
 #logo {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 18px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--text); line-height: 1;
+  line-height: 1;
   user-select: none;
 }
-#logo em { color: var(--red); font-style: normal; }
-#logo sub {
+#logo-img {
+  height: 36px;
+  width: auto;
   display: block;
-  font-size: 9px; font-weight: 500; letter-spacing: .12em;
-  color: var(--text-3); margin-top: 1px; text-transform: uppercase;
+  object-fit: contain;
 }
 
 .hbtn {
@@ -702,7 +702,7 @@ body.navigating .leaflet-control-zoom { display: none; }
   <div id="drag-zone"><div id="drag-pip"></div></div>
 
   <div id="header">
-    <div id="logo">Simple <em>Route</em> Planner<sub>SRP</sub></div>
+    <div id="logo"><img src="https://i.ibb.co/99L8Z3HR/srplogo.png" alt="SRP" id="logo-img"/></div>
     <div style="display:flex;gap:7px">
       <button id="btn-routes" class="hbtn" onclick="openRoutes()" title="Saved routes">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
