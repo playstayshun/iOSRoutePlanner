@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,7 +39,6 @@
 /* ── RESET ────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* THE iOS FIX: html+body never scroll; map is fixed — it never resizes, ever. */
 html {
   position: fixed;
   width: 100%; height: 100%;
@@ -56,15 +54,14 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── MAP — fixed full-screen, never participates in layout ────────────── */
+/* ── MAP ──────────────────────────────────────────────────────────────── */
 #map {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: var(--ink); /* prevents white flash before tiles load */
+  background: var(--ink);
 }
 
-/* Leaflet chrome */
 .leaflet-control-attribution {
   background: rgba(0,0,0,.5) !important;
   color: rgba(255,255,255,.28) !important;
@@ -76,10 +73,9 @@ body {
 .leaflet-control-zoom {
   border: none !important;
   box-shadow: 0 4px 20px rgba(0,0,0,.55) !important;
-  margin-bottom: 0 !important; /* position via CSS below */
+  margin-bottom: 0 !important;
 }
 .leaflet-bottom.leaflet-right {
-  /* clear the panel — approx panel height + safe-b */
   bottom: calc(var(--panel-visible, 240px) + 16px + var(--safe-b)) !important;
 }
 .leaflet-control-zoom a {
@@ -185,12 +181,11 @@ body {
 body.navigating #panel { display: none !important; }
 body.navigating .leaflet-control-zoom { display: none; }
 
-/* ── PANEL — glass sheet, floats over map ─────────────────────────────── */
+/* ── PANEL ────────────────────────────────────────────────────────────── */
 #panel {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   z-index: 100;
-  /* Glass material */
   background: rgba(9,6,7,.93);
   backdrop-filter: blur(22px) saturate(1.4);
   -webkit-backdrop-filter: blur(22px) saturate(1.4);
@@ -209,7 +204,6 @@ body.navigating .leaflet-control-zoom { display: none; }
   transition: transform .34s cubic-bezier(.32,.72,0,1);
 }
 
-/* Grain overlay — subtle texture makes glass feel physical */
 #panel::before {
   content: '';
   position: absolute;
@@ -222,7 +216,6 @@ body.navigating .leaflet-control-zoom { display: none; }
 }
 #panel > * { position: relative; z-index: 1; }
 
-/* collapsed: only drag handle + header visible */
 #panel.collapsed { transform: translateY(calc(100% - 62px)); }
 
 /* ── DRAG HANDLE ─────────────────────────────────────────────────────── */
@@ -326,7 +319,7 @@ body.navigating .leaflet-control-zoom { display: none; }
   border-radius: 13px;
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
-  font-size: 16px; /* prevents iOS zoom-on-focus */
+  font-size: 16px;
   padding: 0 14px; outline: none;
   transition: border-color .15s, background .15s;
   -webkit-appearance: none; appearance: none;
@@ -334,7 +327,6 @@ body.navigating .leaflet-control-zoom { display: none; }
 #address::placeholder { color: var(--text-3); }
 #address:focus { border-color: rgba(227,41,58,.4); background: rgba(255,255,255,.07); }
 
-/* Pin mode toggle — lives in the search row */
 #btn-pin {
   flex-shrink: 0;
   width: 50px; height: 50px; border-radius: 13px;
@@ -372,7 +364,6 @@ body.navigating .leaflet-control-zoom { display: none; }
   padding: 0 14px 8px;
 }
 
-/* Optimize — primary action, taller, always 1st child */
 #btn-optimize {
   flex: 2;
   height: 46px;
@@ -392,7 +383,6 @@ body.navigating .leaflet-control-zoom { display: none; }
   transform: scale(.97);
 }
 
-/* Save and Clear — secondary, smaller */
 .sec-btn {
   flex: 1;
   height: 46px;
@@ -549,7 +539,7 @@ body.navigating .leaflet-control-zoom { display: none; }
 }
 .backdrop.on { opacity: 1; pointer-events: auto; }
 
-/* ── SHEETS (modal + drawer share these) ──────────────────────────────── */
+/* ── SHEETS ───────────────────────────────────────────────────────────── */
 .sheet {
   position: fixed; bottom: 0; left: 0; right: 0;
   z-index: 500;
@@ -571,7 +561,6 @@ body.navigating .leaflet-control-zoom { display: none; }
 }
 .sheet-sub { font-size: 12px; color: var(--text-2); margin-bottom: 18px; padding: 0 20px; }
 
-/* Modal input */
 .sheet-input {
   display: block; width: calc(100% - 40px); margin: 0 20px 14px;
   background: rgba(255,255,255,.055); border: 1px solid var(--border);
@@ -584,7 +573,6 @@ body.navigating .leaflet-control-zoom { display: none; }
 .sheet-input::placeholder { color: var(--text-3); }
 .sheet-input:focus { border-color: rgba(227,41,58,.4); background: rgba(255,255,255,.07); }
 
-/* Toggle row */
 .toggle-row {
   display: flex; align-items: center; justify-content: space-between;
   margin: 0 20px 18px;
@@ -612,7 +600,6 @@ body.navigating .leaflet-control-zoom { display: none; }
 .ios-sw input:checked + .ios-sw-track { background: var(--red); border-color: var(--red-2); }
 .ios-sw input:checked + .ios-sw-track::after { transform: translateX(18px); background: #fff; }
 
-/* Sheet buttons */
 .sheet-btns { display: flex; gap: 10px; padding: 0 20px; }
 .sheet-btn-cancel {
   flex: 1; height: 50px;
@@ -635,7 +622,7 @@ body.navigating .leaflet-control-zoom { display: none; }
 }
 .sheet-btn-confirm:active { background: var(--red-2); transform: scale(.97); }
 
-/* ── ROUTES DRAWER EXTRAS ─────────────────────────────────────────────── */
+/* ── ROUTES DRAWER ────────────────────────────────────────────────────── */
 #routes-drawer { max-height: 82vh; display: flex; flex-direction: column; }
 .drawer-hdr {
   display: flex; align-items: center; justify-content: space-between;
@@ -823,10 +810,10 @@ const esc = s => String(s)
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
 /* ── STATE ────────────────────────────────────────────────────────────── */
-let gpsCurrent    = null;   // always the live GPS coord
-let start         = null;   // actual coord used for routing (GPS or savedStart)
-let savedStart    = null;   // non-null = loaded route with fixed start
-let savedStartMk  = null;   // the 'S' Leaflet marker (so clearAll can remove it)
+let gpsCurrent    = null;
+let start         = null;
+let savedStart    = null;
+let savedStartMk  = null;
 let stops         = [];
 let markers       = [];
 let glowLine      = null;
@@ -841,9 +828,9 @@ let gpsWatcher    = null;
 let gpsMarker     = null;
 let following     = true;
 
-/* ── MAP — fixed full screen, never resizes on iOS ────────────────────── */
+/* ── MAP ──────────────────────────────────────────────────────────────── */
 const map = L.map("map", {
-  tap: false,            // prevents iOS double-fire click events
+  tap: false,
   zoomControl: true,
   attributionControl: true,
   fadeAnimation: true,
@@ -888,14 +875,15 @@ function pill(msg, ms, type) {
 }
 
 /* ── DRAG-TO-RESIZE PANEL ─────────────────────────────────────────────── */
+let panelSnapTo; // exposed so doClear can call it
+
 (function() {
   const zone   = document.getElementById("drag-zone");
   const panel  = document.getElementById("panel");
-  const SNAPS  = [68, 250]; // collapsed-ish, open heights from bottom
+  const SNAPS  = [68, 250];
   let dragging = false, startY = 0, startBottom = 0;
 
   function getPanelBottom() {
-    // Current "exposed" height of the panel
     const r = panel.getBoundingClientRect();
     return window.innerHeight - r.top;
   }
@@ -907,6 +895,9 @@ function pill(msg, ms, type) {
     panel.style.transform = `translateY(${hide}px)`;
     setTimeout(() => { panel.style.transition = ""; adjustZoomCtrl(h); }, 350);
   }
+
+  // Expose snapTo globally for use by doClear
+  panelSnapTo = snapTo;
 
   function adjustZoomCtrl(visH) {
     document.documentElement.style.setProperty(
@@ -923,7 +914,7 @@ function pill(msg, ms, type) {
 
   function onMove(e) {
     if (!dragging) return;
-    const dy = startY - e.touches[0].clientY; // positive = drag up
+    const dy = startY - e.touches[0].clientY;
     const newH = Math.min(window.innerHeight * 0.8, Math.max(60, startBottom + dy));
     const full = panel.scrollHeight;
     panel.style.transform = `translateY(${Math.max(0, full - newH)}px)`;
@@ -935,7 +926,6 @@ function pill(msg, ms, type) {
     dragging = false;
     panel.style.transition = "";
     const h = getPanelBottom();
-    // Snap to nearest preset
     const mid = (SNAPS[0] + SNAPS[1]) / 2;
     snapTo(h < mid ? SNAPS[0] : SNAPS[1]);
     map.invalidateSize();
@@ -944,7 +934,6 @@ function pill(msg, ms, type) {
   document.addEventListener("touchmove", onMove, { passive: true });
   document.addEventListener("touchend",  onEnd);
 
-  // Double-tap: restore to open
   let lastTap = 0;
   zone.addEventListener("touchend", () => {
     const t = Date.now();
@@ -952,7 +941,6 @@ function pill(msg, ms, type) {
     lastTap = t;
   });
 
-  // Set initial visible height
   adjustZoomCtrl(SNAPS[1]);
 })();
 
@@ -972,7 +960,6 @@ map.on("click", e => {
   doOptimize();
 });
 
-// Long-press (mouse only — touches handled by click after CSS cursor:crosshair)
 let holdT = null;
 map.on("mousedown", e => {
   if (pinMode) return;
@@ -988,7 +975,6 @@ function startGPS() {
       gpsCurrent = [pos.coords.latitude, pos.coords.longitude];
       if (!savedStart) start = gpsCurrent;
 
-      // Update / create pulsing GPS marker
       if (!gpsMarker) {
         gpsMarker = L.marker(gpsCurrent, { icon: gpsIcon(), zIndexOffset: 2000 })
           .addTo(map).bindPopup("<b>You are here</b>");
@@ -1222,8 +1208,9 @@ async function doOptimize() {
 
   const coords = [start, ...stops.map(s=>s.coord)].map(c=>`${c[1]},${c[0]}`).join(";");
   try {
+    // FIX: overview=full gives the complete road-snapped geometry instead of simplified straight-ish lines
     const data = await fetch(
-      `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
+      `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson&overview=full`
     ).then(r => r.json());
 
     if (optGen !== myGen || !data.trips?.length) return;
@@ -1236,7 +1223,6 @@ async function doOptimize() {
 
     const pts = data.trips[0].geometry.coordinates.map(c=>[c[1],c[0]]);
 
-    // Dual-layer glow route line
     glowLine  = L.polyline(pts, { color:"#e3293a", weight:11, opacity:.13, lineCap:"round", lineJoin:"round" }).addTo(map);
     routeLine = L.polyline(pts, { color:"#e3293a", weight:3.5, opacity:.92, lineCap:"round", lineJoin:"round" }).addTo(map);
 
@@ -1255,6 +1241,12 @@ function doClear() {
   document.getElementById("stops-section-label").style.display = "none";
   document.getElementById("stops-outer").classList.remove("overflow");
   updateSaveBtn(); updateNavRow();
+
+  // FIX: reset panel transform so it doesn't hide off-screen after content shrinks
+  const panel = document.getElementById("panel");
+  panel.style.transition = "transform .34s cubic-bezier(.32,.72,0,1)";
+  panel.style.transform  = "translateY(0)";
+  setTimeout(() => { panel.style.transition = ""; }, 350);
 }
 
 /* ── NIGHT MODE ───────────────────────────────────────────────────────── */
@@ -1391,8 +1383,6 @@ document.getElementById("stops-scroll").addEventListener("touchmove", e => {
 refreshBadge();
 startGPS();
 
-// Force a single invalidateSize now that the map container is settled
-// (map is fixed, so this is mostly cosmetic but ensures tile loading)
 requestAnimationFrame(() => map.invalidateSize());
 window.addEventListener("resize",            () => map.invalidateSize());
 window.addEventListener("orientationchange", () => setTimeout(() => map.invalidateSize(), 300));
