@@ -750,7 +750,7 @@
               Math.cos(rLat1) * Math.cos(rLat2) *
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+    return R * c; // Distance in meters
   }
 
   function formatDistance(meters) {
@@ -862,21 +862,49 @@
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 
-  // ─── FORWARD GEOCODE ──────────────────────────────────────────────────
+  // ─── FIXED PROXIMITY GEOCODER ─────────────────────────────────────────
   async function geocode(query) {
-    if (!start) throw new Error("No start");
+    if (!start) throw new Error("No start location available");
     const [lat, lon] = start;
-    const vb = [lon-.25, lat-.25, lon+.25, lat+.25].join(",");
-    const r1 = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&viewbox=${vb}&bounded=1`,
+
+    // Build a proper viewbox (left, top, right, bottom)
+    // 0.25 degrees is roughly ~15-17 miles depending on latitude
+    const left   = lon - 0.25;
+    const top    = lat + 0.25;
+    const right  = lon + 0.25;
+    const bottom = lat - 0.25;
+    const vb = `${left},${top},${right},${bottom}`;
+
+    // Request up to 10 results from Nominatim so we can sort them mathematically ourselves
+    const results = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&viewbox=${vb}`,
       { headers: { Accept: "application/json" } }
     ).then(r => r.json());
-    if (r1.length) return { coord: [+r1[0].lat, +r1[0].lon], display: r1[0].display_name };
-    const r2 = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
-    ).then(r => r.json());
-    if (!r2.length) throw new Error("Not found");
-    return { coord: [+r2[0].lat, +r2[0].lon], display: r2[0].display_name };
+
+    if (!results || results.length === 0) {
+        throw new Error("Address or POI not found");
+    }
+
+    // Mathematically find the absolute closest result using Haversine formula
+    let closestItem = results[0];
+    let minDistance = Infinity;
+
+    for (const item of results) {
+        const itemLat = parseFloat(item.lat);
+        const itemLon = parseFloat(item.lon);
+        
+        const distanceToItem = haversineDistance(lat, lon, itemLat, itemLon);
+        
+        if (distanceToItem < minDistance) {
+            minDistance = distanceToItem;
+            closestItem = item;
+        }
+    }
+
+    return { 
+        coord: [+closestItem.lat, +closestItem.lon], 
+        display: closestItem.display_name 
+    };
   }
 
   function shortenAddress(display) {
