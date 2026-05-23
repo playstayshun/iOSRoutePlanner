@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>SRP-SimpleRoutePlanner</title>
+  <title>SRP — Simple Route Planner</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,26 +32,47 @@
       --radius:   12px;
       --safe-b:   env(safe-area-inset-bottom, 0px);
       --safe-t:   env(safe-area-inset-top, 0px);
+      --safe-l:   env(safe-area-inset-left, 0px);
+      --safe-r:   env(safe-area-inset-right, 0px);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { height: 100%; overflow: hidden; position: fixed; width: 100%; }
-    body {
+
+    /* Full-screen layout that works on iOS Safari */
+    html, body {
       height: 100%;
+      width: 100%;
+      overflow: hidden;
+      position: fixed; /* prevents iOS rubber-band scroll */
+    }
+    body {
       font-family: 'DM Sans', sans-serif;
-      background: var(--bg); color: var(--text);
+      background: var(--bg);
+      color: var(--text);
       -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
-      overflow: hidden; display: flex; flex-direction: column;
+      display: flex;
+      flex-direction: column;
+      /* Account for notch/dynamic island */
+      padding-top: var(--safe-t);
     }
 
     /* ── MAP ─────────────────────────────────────────── */
-    #map-wrap { position: relative; flex: 1 1 0; min-height: 0; transition: flex .3s ease; }
+    #map-wrap {
+      position: relative;
+      flex: 1 1 0;
+      min-height: 0;
+      /* GPU layer for smooth panel slide */
+      will-change: flex-basis;
+    }
     #map { height: 100%; width: 100%; }
 
     .leaflet-control-attribution {
-      background: rgba(0,0,0,.55) !important; color: rgba(255,255,255,.3) !important;
-      font-size: 9px !important; backdrop-filter: blur(4px);
+      background: rgba(0,0,0,.55) !important;
+      color: rgba(255,255,255,.3) !important;
+      font-size: 9px !important;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
     .leaflet-control-attribution a { color: rgba(255,255,255,.35) !important; }
     .leaflet-control-zoom { border: none !important; box-shadow: 0 2px 12px rgba(0,0,0,.5) !important; }
@@ -61,41 +82,70 @@
       font-size: 18px !important; width: 38px !important; height: 38px !important; line-height: 38px !important;
     }
     .leaflet-control-zoom a:hover { background: var(--raised2) !important; color: var(--red) !important; }
-    #map.pin-mode { outline: 2.5px solid var(--red); outline-offset: -2px; }
+    #map.pin-mode { outline: 2.5px solid var(--red); outline-offset: -2px; cursor: crosshair; }
 
+    /* ── STATUS PILL ──────────────────────────────────── */
     #status-pill {
-      position: absolute; top: calc(12px + var(--safe-t)); left: 50%;
-      transform: translateX(-50%) translateY(-6px); z-index: 1001;
+      position: absolute;
+      top: 12px; left: 50%;
+      transform: translateX(-50%) translateY(-6px);
+      z-index: 1001;
       background: var(--red); color: #fff;
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
-      padding: 7px 18px; border-radius: 4px; pointer-events: none; opacity: 0;
+      padding: 7px 18px; border-radius: 4px;
+      pointer-events: none; opacity: 0;
       transition: opacity .2s ease, transform .2s ease;
-      white-space: nowrap; box-shadow: 0 4px 20px rgba(232,41,58,.4);
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(232,41,58,.4);
+      will-change: opacity, transform;
     }
     #status-pill.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* ── PANEL ───────────────────────────────────────── */
     #panel {
-      flex: 0 0 auto; background: var(--surface); border-top: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      padding-bottom: var(--safe-b); max-height: 52vh;
+      flex: 0 0 auto;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      /* Max panel height: a bit less on short phones */
+      max-height: min(52vh, 380px);
+      padding-bottom: var(--safe-b);
+      will-change: transform;
       transition: transform .3s cubic-bezier(.32,.72,0,1);
+      /* Prevent panel from accidentally capturing map touches */
+      touch-action: pan-y;
     }
+    #panel.collapsed {
+      transform: translateY(calc(100% - 56px)); /* show just the drag handle + app name */
+    }
+
     #drag-handle {
-      width: 36px; height: 4px; background: var(--raised2);
-      border-radius: 2px; margin: 10px auto 6px; flex-shrink: 0;
+      width: 36px; height: 4px;
+      background: var(--raised2);
+      border-radius: 2px;
+      margin: 10px auto 6px;
+      flex-shrink: 0;
+      cursor: grab;
+      /* Wider touch target without changing visual size */
+      padding: 10px 20px;
+      margin-left: auto; margin-right: auto;
+      background-clip: padding-box;
+      -webkit-background-clip: padding-box;
     }
 
     /* ── HEADER ──────────────────────────────────────── */
     #header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 4px 16px 10px; flex-shrink: 0;
+      padding: 4px 16px 10px;
+      flex-shrink: 0;
     }
     #app-name {
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 20px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
       color: var(--text); line-height: 1;
+      user-select: none;
     }
     #app-name span { color: var(--red); }
 
@@ -106,48 +156,64 @@
       cursor: pointer; color: var(--muted); position: relative;
       transition: color .15s, background .15s, border-color .15s;
       -webkit-tap-highlight-color: transparent;
+      /* Minimum touch target */
+      min-width: 44px; min-height: 44px;
     }
     .hdr-btn:active { background: var(--raised2); color: var(--red); }
     .hdr-btn.active { color: var(--red); border-color: var(--border-r); background: var(--red-soft); }
 
     .hdr-badge {
-      position: absolute; top: -4px; right: -4px;
+      position: absolute; top: 2px; right: 2px;
       min-width: 16px; height: 16px;
       background: var(--red); color: #fff;
       font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700;
       border-radius: 8px; padding: 0 4px;
       display: flex; align-items: center; justify-content: center;
-      pointer-events: none; opacity: 0; transform: scale(0);
-      transition: opacity .2s, transform .2s;
+      pointer-events: none; opacity: 0;
+      transform: scale(0);
+      transition: opacity .2s, transform .2s cubic-bezier(.34,1.56,.64,1);
     }
     .hdr-badge.show { opacity: 1; transform: scale(1); }
 
     /* ── INPUT ROW ───────────────────────────────────── */
-    #input-row { display: flex; gap: 8px; padding: 0 16px 10px; flex-shrink: 0; }
-
+    #input-row {
+      display: flex; gap: 8px;
+      padding: 0 16px 10px;
+      flex-shrink: 0;
+    }
     #address {
-      flex: 1; background: var(--raised); border: 1px solid var(--border);
+      flex: 1;
+      background: var(--raised); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--text);
-      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      font-family: 'DM Sans', sans-serif; font-size: 16px; /* 16px prevents iOS zoom-on-focus */
       padding: 0 14px; height: 48px; outline: none;
-      transition: border-color .15s, background .15s; -webkit-appearance: none;
+      transition: border-color .15s, background .15s;
+      -webkit-appearance: none;
+      appearance: none;
     }
     #address::placeholder { color: var(--muted); }
     #address:focus { border-color: var(--red); background: var(--raised2); }
 
     #btn-add {
-      height: 48px; padding: 0 20px; background: var(--red); color: #fff; border: none;
+      height: 48px; padding: 0 20px;
+      background: var(--red); color: #fff; border: none;
       border-radius: var(--radius);
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 16px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-      cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s;
+      cursor: pointer; white-space: nowrap;
+      transition: background .15s, transform .1s;
       -webkit-tap-highlight-color: transparent;
+      /* Min touch target */
+      min-width: 64px;
     }
     #btn-add:active { background: var(--red-dim); transform: scale(.96); }
 
     /* ── ACTION ROW ──────────────────────────────────── */
-    #action-row { display: flex; gap: 8px; padding: 0 16px 8px; flex-shrink: 0; }
-
+    #action-row {
+      display: flex; gap: 8px;
+      padding: 0 16px 8px;
+      flex-shrink: 0;
+    }
     .action-btn {
       flex: 1; height: 44px;
       border: 1px solid var(--border); border-radius: var(--radius);
@@ -156,20 +222,23 @@
       font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
       cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: background .15s, border-color .15s, color .15s, transform .1s;
-      -webkit-tap-highlight-color: transparent; -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-appearance: none;
+      appearance: none;
     }
     .action-btn:active { transform: scale(.96); }
-
-    #btn-pin.active, #btn-pin:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    #btn-pin.active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    #btn-pin:active  { background: var(--red-soft); border-color: var(--red); color: var(--red); }
     #btn-optimize:active { background: rgba(0,200,100,.08); border-color: rgba(0,200,100,.4); color: var(--green); }
     #btn-save-route:active { background: rgba(255,180,0,.08); border-color: rgba(255,180,0,.4); color: #ffb400; }
     #btn-save-route.has-stops { color: var(--text); border-color: rgba(255,180,0,.25); }
     #btn-clear:active { background: rgba(255,100,80,.08); border-color: rgba(255,100,80,.4); color: #ff6450; }
 
-    /* ── NAVIGATION ROW & OVERLAY ────────────────────── */
+    /* ── NAVIGATION ROW ──────────────────────────────── */
     #nav-row {
-      padding: 0 16px 10px; flex-shrink: 0;
-      display: none; /* shown via JS when stops exist */
+      padding: 0 16px 10px;
+      flex-shrink: 0;
+      display: none;
     }
     #btn-start-nav {
       width: 100%; height: 48px;
@@ -179,42 +248,61 @@
       font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
       cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
       transition: opacity .15s, transform .1s, background .15s;
-      -webkit-tap-highlight-color: transparent; -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-appearance: none;
+      appearance: none;
       box-shadow: 0 4px 14px rgba(0,200,100,.15);
     }
     #btn-start-nav:active { transform: scale(.97); background: var(--green-dim); }
 
+    /* ── NAV OVERLAY ─────────────────────────────────── */
     #nav-overlay {
-      position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
-      background: var(--surface); border-bottom: 1px solid var(--border);
-      padding: calc(16px + var(--safe-t)) 20px 16px;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px 16px;
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      transform: translateY(-100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+      transform: translateY(-100%);
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
       box-shadow: 0 4px 24px rgba(0,0,0,.5);
+      will-change: transform;
     }
     #nav-overlay.active { transform: translateY(0); }
     .nav-info { flex: 1; min-width: 0; }
-    .nav-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
-    .nav-address { font-size: 18px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-    .nav-distance { font-size: 14px; color: var(--muted); margin-top: 4px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
-
+    .nav-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 800; color: var(--green);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px;
+    }
+    .nav-address {
+      font-size: 18px; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
+    }
+    .nav-distance {
+      font-size: 14px; color: var(--muted); margin-top: 4px;
+      font-weight: 500; display: flex; align-items: center; gap: 6px;
+    }
     .nav-btn-end {
-      width: 48px; height: 48px; border-radius: 14px; background: rgba(232,41,58,.1);
-      border: 1px solid rgba(232,41,58,.3); color: var(--red); display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; transition: background .15s, transform .1s;
+      width: 48px; height: 48px; border-radius: 14px;
+      background: rgba(232,41,58,.1); border: 1px solid rgba(232,41,58,.3);
+      color: var(--red); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      transition: background .15s, transform .1s;
       -webkit-tap-highlight-color: transparent;
     }
     .nav-btn-end:active { background: rgba(232,41,58,.25); transform: scale(.94); }
 
-    /* Navigating State Overrides */
+    /* Navigating state */
     body.navigating #panel { display: none !important; }
     body.navigating .leaflet-control-zoom { display: none; }
 
-    /* Saved start banner */
+    /* ── START BANNER ────────────────────────────────── */
     #start-banner {
       margin: 0 16px 8px;
-      background: rgba(255, 180, 0, .08);
-      border: 1px solid rgba(255, 180, 0, .22);
+      background: rgba(255,180,0,.08);
+      border: 1px solid rgba(255,180,0,.22);
       border-radius: 10px;
       padding: 9px 13px;
       display: none;
@@ -242,17 +330,20 @@
     #btn-use-gps:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
 
     /* ── STOPS LIST ──────────────────────────────────── */
-    #stops-outer { flex: 1; min-height: 0; position: relative; }
+    #stops-outer { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 
     #stops-wrap {
       height: 100%; overflow-y: auto; overflow-x: hidden;
       padding: 2px 16px 8px;
+      /* Smooth momentum scrolling on iOS */
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+      /* Allow vertical scroll but block horizontal to avoid stealing map pan */
       touch-action: pan-y;
     }
     #stops-wrap::-webkit-scrollbar { display: none; }
 
+    /* Fade-out bottom of list */
     #stops-outer::after {
       content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 28px;
       background: linear-gradient(to bottom, transparent, var(--surface));
@@ -286,13 +377,12 @@
       background: var(--red); color: #fff;
       font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: background .2s;
+      flex-shrink: 0;
     }
     .stop-num.pending {
       background: var(--raised2); border: 1px solid var(--border);
       color: var(--muted); font-size: 18px;
     }
-
     .stop-meta { flex: 1; min-width: 0; }
     .stop-addr {
       display: block; font-size: 13px; font-weight: 500; color: var(--text);
@@ -302,7 +392,7 @@
     .stop-coord { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
 
     .stop-remove {
-      width: 36px; height: 36px; border-radius: 8px;
+      width: 44px; height: 44px; border-radius: 8px;
       border: 1px solid transparent; background: none; color: var(--muted);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; -webkit-tap-highlight-color: transparent;
@@ -311,7 +401,8 @@
     .stop-remove:active { background: rgba(232,41,58,.12); border-color: rgba(232,41,58,.3); color: var(--red); }
 
     #empty-state {
-      text-align: center; padding: 16px 0 8px; color: var(--muted); font-size: 13px; line-height: 1.7;
+      text-align: center; padding: 16px 0 8px;
+      color: var(--muted); font-size: 13px; line-height: 1.7;
     }
     #empty-state strong {
       display: block;
@@ -323,32 +414,47 @@
     /* ── CUSTOM PINS ─────────────────────────────────── */
     .rr-pin { position: relative; width: 30px; height: 38px; }
     .rr-pin-body {
-      position: absolute; inset: 0; border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg); box-shadow: 0 4px 14px rgba(0,0,0,.55);
+      position: absolute; inset: 0;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 4px 14px rgba(0,0,0,.55);
     }
     .rr-pin-num {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       padding-bottom: 4px;
-      font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; color: #fff; z-index: 1;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; color: #fff; z-index: 1;
     }
 
     /* ── BACKDROP ────────────────────────────────────── */
     .sheet-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 1000;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 1000;
       opacity: 0; pointer-events: none;
-      transition: opacity .25s ease; backdrop-filter: blur(2px);
+      transition: opacity .25s ease;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
     .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
 
     /* ── SAVE MODAL ──────────────────────────────────── */
     #save-modal {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 1001;
       background: var(--surface); border-top: 1px solid var(--border-r);
-      border-radius: 20px 20px 0 0; padding: 0 20px calc(20px + var(--safe-b));
-      transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+      border-radius: 20px 20px 0 0;
+      padding: 0 20px calc(20px + var(--safe-b));
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
+      will-change: transform;
     }
     #save-modal.open { transform: translateY(0); }
-    .modal-handle { width: 36px; height: 4px; background: var(--raised2); border-radius: 2px; margin: 14px auto 18px; }
+    .modal-handle {
+      width: 36px; height: 4px; background: var(--raised2);
+      border-radius: 2px; margin: 14px auto 18px;
+    }
     .modal-title {
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 18px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
@@ -356,16 +462,18 @@
     }
     .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
     .modal-input {
-      width: 100%; background: var(--raised); border: 1px solid var(--border);
+      width: 100%;
+      background: var(--raised); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--text);
-      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      font-family: 'DM Sans', sans-serif; font-size: 16px; /* 16px prevents iOS zoom */
       padding: 0 14px; height: 50px; outline: none;
-      transition: border-color .15s, background .15s; -webkit-appearance: none; margin-bottom: 14px;
+      transition: border-color .15s, background .15s;
+      -webkit-appearance: none; appearance: none;
+      margin-bottom: 14px;
     }
     .modal-input::placeholder { color: var(--muted); }
     .modal-input:focus { border-color: var(--red); background: var(--raised2); }
 
-    /* ── SAVE START TOGGLE ───────────────────────────── */
     .modal-toggle-row {
       display: flex; align-items: center; justify-content: space-between;
       background: var(--raised); border: 1px solid var(--border);
@@ -373,19 +481,15 @@
       margin-bottom: 16px; gap: 12px;
     }
     .modal-toggle-label { flex: 1; }
-    .modal-toggle-label span {
-      display: block; font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3;
-    }
+    .modal-toggle-label span { display: block; font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3; }
     .modal-toggle-label small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
 
-    /* iOS-style toggle */
     .ios-toggle { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
     .ios-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
     .ios-toggle-track {
       position: absolute; inset: 0; border-radius: 13px;
       background: var(--raised2); border: 1px solid var(--border);
-      transition: background .2s, border-color .2s;
-      cursor: pointer;
+      transition: background .2s, border-color .2s; cursor: pointer;
     }
     .ios-toggle-track::after {
       content: ''; position: absolute;
@@ -394,39 +498,42 @@
       transition: transform .2s cubic-bezier(.34,1.56,.64,1), background .2s;
       box-shadow: 0 1px 4px rgba(0,0,0,.4);
     }
-    .ios-toggle input:checked + .ios-toggle-track {
-      background: var(--red); border-color: var(--red-dim);
-    }
-    .ios-toggle input:checked + .ios-toggle-track::after {
-      transform: translateX(18px); background: #fff;
-    }
+    .ios-toggle input:checked + .ios-toggle-track { background: var(--red); border-color: var(--red-dim); }
+    .ios-toggle input:checked + .ios-toggle-track::after { transform: translateX(18px); background: #fff; }
 
     .modal-btns { display: flex; gap: 10px; }
     .modal-btn-cancel {
-      flex: 1; height: 50px; background: var(--raised); border: 1px solid var(--border);
+      flex: 1; height: 50px;
+      background: var(--raised); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--muted);
       font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
       letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, transform .1s;
     }
     .modal-btn-cancel:active { background: var(--raised2); transform: scale(.97); }
     .modal-btn-confirm {
-      flex: 2; height: 50px; background: var(--red); border: none;
+      flex: 2; height: 50px;
+      background: var(--red); border: none;
       border-radius: var(--radius); color: #fff;
       font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
       letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, transform .1s;
     }
     .modal-btn-confirm:active { background: var(--red-dim); transform: scale(.97); }
 
     /* ── ROUTES DRAWER ───────────────────────────────── */
     #routes-drawer {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 1001;
       background: var(--surface); border-top: 1px solid var(--border-r);
       border-radius: 20px 20px 0 0; max-height: 82vh;
       display: flex; flex-direction: column;
-      transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
       padding-bottom: var(--safe-b);
+      will-change: transform;
     }
     #routes-drawer.open { transform: translateY(0); }
     .drawer-handle { width: 36px; height: 4px; background: var(--raised2); border-radius: 2px; margin: 14px auto 0; flex-shrink: 0; }
@@ -437,17 +544,19 @@
     .drawer-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--text); }
     .drawer-title span { color: var(--red); }
     .drawer-close {
-      width: 34px; height: 34px; border-radius: 8px; background: var(--raised); border: 1px solid var(--border);
+      width: 44px; height: 44px; border-radius: 8px;
+      background: var(--raised); border: 1px solid var(--border);
       color: var(--muted); display: flex; align-items: center; justify-content: center;
-      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s;
     }
     .drawer-close:active { background: var(--raised2); color: var(--red); }
     .drawer-list {
-      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      flex: 1; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain; padding: 8px 20px 12px;
     }
     .drawer-list::-webkit-scrollbar { display: none; }
-
     .drawer-empty { text-align: center; padding: 32px 0 16px; color: var(--muted); font-size: 13px; line-height: 1.8; }
     .drawer-empty strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; letter-spacing: .07em; text-transform: uppercase; color: var(--raised2); margin-bottom: 4px; }
 
@@ -456,7 +565,7 @@
     .route-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--red-soft); border: 1px solid var(--border-r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--red); }
     .route-info { flex: 1; min-width: 0; }
     .route-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
-    .route-meta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .route-meta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .route-start-badge {
       display: inline-flex; align-items: center; gap: 3px;
       background: rgba(255,180,0,.1); border: 1px solid rgba(255,180,0,.2);
@@ -465,7 +574,13 @@
       letter-spacing: .06em; text-transform: uppercase; color: #ffb400;
     }
     .route-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .route-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--raised); color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s, transform .1s; }
+    .route-btn {
+      width: 44px; height: 44px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--raised); color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s, border-color .15s, transform .1s;
+    }
     .route-btn:active { transform: scale(.93); }
     .route-btn.load:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
     .route-btn.del:active { background: rgba(255,100,80,.1); border-color: rgba(255,100,80,.3); color: #ff6450; }
@@ -478,18 +593,19 @@
 </head>
 <body>
 
-<div id="nav-overlay">
-  <div class="nav-info">
-    <div class="nav-title" id="nav-title">Navigation Info</div>
-    <div class="nav-address" id="nav-address">Locating...</div>
-    <div class="nav-distance" id="nav-distance">--</div>
-  </div>
-  <button class="nav-btn-end" onclick="stopNavigation()" aria-label="End Navigation" title="End Navigation">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-  </button>
-</div>
-
+<!-- Navigation overlay sits inside #map-wrap so it doesn't affect the panel -->
 <div id="map-wrap">
+  <div id="nav-overlay">
+    <div class="nav-info">
+      <div class="nav-title" id="nav-title">Navigation</div>
+      <div class="nav-address" id="nav-address">Locating…</div>
+      <div class="nav-distance" id="nav-distance">--</div>
+    </div>
+    <button class="nav-btn-end" onclick="stopNavigation()" aria-label="End navigation">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
   <div id="status-pill"></div>
   <div id="map"></div>
 </div>
@@ -499,12 +615,12 @@
 
   <div id="header">
     <div id="app-name">Simple <span>Route</span> Planner</div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:6px;align-items:center">
       <button id="btn-routes" class="hdr-btn" onclick="openRoutesDrawer()" title="Saved routes">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         <span id="routes-badge" class="hdr-badge">0</span>
       </button>
-      <button id="btn-night" class="hdr-btn active" onclick="toggleNightMode()" title="Night mode">
+      <button id="btn-night" class="hdr-btn active" onclick="toggleNightMode()" title="Toggle night mode">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
     </div>
@@ -556,13 +672,17 @@
     <div id="stops-wrap">
       <div id="stops-label">Stops</div>
       <div id="stops"></div>
-      <div id="empty-state"><strong>No stops added</strong>Search an address or tap the map</div>
+      <div id="empty-state">
+        <strong>No stops added</strong>Search an address or tap the map
+      </div>
     </div>
   </div>
 </div>
 
+<!-- Sheets backdrop -->
 <div id="backdrop" class="sheet-backdrop" onclick="closeAll()"></div>
 
+<!-- Save Modal -->
 <div id="save-modal">
   <div class="modal-handle"></div>
   <div class="modal-title">Save Route</div>
@@ -571,7 +691,6 @@
          placeholder="e.g. Morning deliveries…"
          autocomplete="off" autocorrect="off" spellcheck="false" maxlength="48"
          onkeydown="if(event.key==='Enter'){this.blur();confirmSaveRoute()}" />
-
   <div class="modal-toggle-row">
     <div class="modal-toggle-label">
       <span>Save start location</span>
@@ -582,13 +701,13 @@
       <span class="ios-toggle-track"></span>
     </label>
   </div>
-
   <div class="modal-btns">
     <button class="modal-btn-cancel" onclick="closeSaveModal()">Cancel</button>
     <button class="modal-btn-confirm" onclick="confirmSaveRoute()">Save Route</button>
   </div>
 </div>
 
+<!-- Routes Drawer -->
 <div id="routes-drawer">
   <div class="drawer-handle"></div>
   <div class="drawer-header">
@@ -602,655 +721,699 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // ─── STATE ────────────────────────────────────────────────────────────
-  let start           = null;   // [lat, lng] — current GPS or saved override
-  let savedStartCoord = null;   // set when a route with a saved start is loaded
-  let stops           = [];
-  let markers         = [];
-  let routeLine       = null;
-  let darkMode        = true;
-  let pinMode         = false;
-  let optimizeGen     = 0;
+/* ─── UTILITY ─────────────────────────────────────────────────────────── */
+function escHtml(s) {
+  // FIX: was replace(/&/g,"&") — missing semicolon caused broken HTML + XSS
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-  // Navigation State
-  let isNavigating    = false;
-  let currentNavIndex = 0;
-  let sortedNavStops  = [];
-  let userMarker      = null;
+/* ─── STATE ───────────────────────────────────────────────────────────── */
+let start           = null;   // [lat, lng] live GPS or saved override
+let savedStartCoord = null;   // non-null when a fixed-start route is loaded
+let savedStartMarker = null;  // FIX: track the 'S' marker so clearAll() can remove it
+let stops           = [];
+let markers         = [];
+let routeLine       = null;
+let darkMode        = true;
+let pinMode         = false;
+let optimizeGen     = 0;
 
-  // ─── MAP ──────────────────────────────────────────────────────────────
-  const map = L.map("map", { tap: false, zoomControl: true, attributionControl: true })
-    .setView([37.7749, -122.4194], 12);
-  map.zoomControl.setPosition("bottomright");
+// Navigation
+let isNavigating    = false;
+let currentNavIndex = 0;
+let sortedNavStops  = [];
 
-  const lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom: 19, attribution: "© OpenStreetMap" });
-  const darkTiles  = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 19, attribution: "© OpenStreetMap © CARTO" });
-  darkTiles.addTo(map);
+// GPS
+let gpsWatcher      = null;
+let userMarker      = null;   // FIX: single variable (was split into userMarker + userLocationMarker)
+let following       = true;   // auto-pan map to GPS position
 
-  // ─── MARKER FACTORY ───────────────────────────────────────────────────
-  function makePin(label, bg, textColor) {
-    return L.divIcon({
-      className: "",
-      html: `<div class="rr-pin">
-               <div class="rr-pin-body" style="background:${bg||"#e8293a"}"></div>
-               <div class="rr-pin-num" style="color:${textColor||"#fff"}">${label}</div>
-             </div>`,
-      iconSize: [30,38], iconAnchor: [15,38], popupAnchor: [0,-40]
-    });
+/* ─── MAP ─────────────────────────────────────────────────────────────── */
+const map = L.map("map", {
+  tap: false,           // use click events instead; tap caused double-fire on iOS
+  zoomControl: true,
+  attributionControl: true
+}).setView([37.7749, -122.4194], 12);
+
+map.zoomControl.setPosition("bottomright");
+
+const lightTiles = L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  { maxZoom: 19, attribution: "© OpenStreetMap" }
+);
+const darkTiles = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  { maxZoom: 19, attribution: "© OpenStreetMap © CARTO" }
+);
+darkTiles.addTo(map);
+
+// Stop following if user manually drags the map
+map.on("dragstart", () => { following = false; });
+
+/* ─── MARKER FACTORY ──────────────────────────────────────────────────── */
+function makePin(label, bg, textColor) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="rr-pin">
+             <div class="rr-pin-body" style="background:${bg || "#e8293a"}"></div>
+             <div class="rr-pin-num" style="color:${textColor || "#fff"}">${label}</div>
+           </div>`,
+    iconSize: [30, 38], iconAnchor: [15, 38], popupAnchor: [0, -40]
+  });
+}
+
+/* ─── STATUS PILL ─────────────────────────────────────────────────────── */
+let pillTimer = null;
+function showPill(txt, ms) {
+  clearTimeout(pillTimer);
+  const p = document.getElementById("status-pill");
+  p.textContent = txt;
+  p.classList.add("show");
+  if (ms) pillTimer = setTimeout(hidePill, ms);
+}
+function hidePill() { document.getElementById("status-pill").classList.remove("show"); }
+
+/* ─── DRAG HANDLE (collapse/expand panel) ─────────────────────────────── */
+(function initDragHandle() {
+  const handle = document.getElementById("drag-handle");
+  const panel  = document.getElementById("panel");
+  let startY = 0, startH = 0, dragging = false;
+
+  function onStart(e) {
+    dragging = true;
+    startY = (e.touches ? e.touches[0].clientY : e.clientY);
+    startH = panel.getBoundingClientRect().height;
+    panel.style.transition = "none";
+    document.addEventListener("mousemove", onMove, { passive: false });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("mouseup",   onEnd);
+    document.addEventListener("touchend",  onEnd);
   }
 
-  // ─── STATUS PILL ──────────────────────────────────────────────────────
-  let pillTimer = null;
-  function showPill(txt, ms) {
-    clearTimeout(pillTimer);
-    const p = document.getElementById("status-pill");
-    p.textContent = txt; p.classList.add("show");
-    if (ms) pillTimer = setTimeout(hidePill, ms);
+  function onMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const y   = (e.touches ? e.touches[0].clientY : e.clientY);
+    const dy  = startY - y; // positive = dragging up
+    const newH = Math.max(56, Math.min(window.innerHeight * 0.7, startH + dy));
+    panel.style.maxHeight = newH + "px";
   }
-  function hidePill() { document.getElementById("status-pill").classList.remove("show"); }
 
-  // ─── PIN MODE ─────────────────────────────────────────────────────────
-  function togglePinMode() {
-    pinMode = !pinMode;
-    document.getElementById("btn-pin").classList.toggle("active", pinMode);
-    document.getElementById("map").classList.toggle("pin-mode", pinMode);
-    if (pinMode) {
-      showPill("Tap map to place stop");
-      map.dragging.disable(); map.touchZoom.disable();
-      map.doubleClickZoom.disable(); map.scrollWheelZoom.disable();
-    } else {
-      hidePill();
-      map.dragging.enable(); map.touchZoom.enable();
-      map.doubleClickZoom.enable(); map.scrollWheelZoom.enable();
+  function onEnd() {
+    dragging = false;
+    panel.style.transition = "";
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("mouseup",   onEnd);
+    document.removeEventListener("touchend",  onEnd);
+    // Snap: if dragged below 25% of normal height, collapse to header only
+    const h = panel.getBoundingClientRect().height;
+    if (h < 100) {
+      panel.style.maxHeight = "56px"; // just the drag handle + header
     }
+    setTimeout(() => map.invalidateSize(), 320);
   }
 
-  map.on("click", e => {
-    if (!pinMode) return;
-    if (navigator.vibrate) navigator.vibrate(25);
+  handle.addEventListener("mousedown",  onStart);
+  handle.addEventListener("touchstart", onStart, { passive: true });
+
+  // Double-tap handle to restore default size
+  let lastTap = 0;
+  handle.addEventListener("touchend", () => {
+    const now = Date.now();
+    if (now - lastTap < 300) panel.style.maxHeight = "";
+    lastTap = now;
+  });
+})();
+
+/* ─── PIN MODE ────────────────────────────────────────────────────────── */
+function togglePinMode() {
+  pinMode = !pinMode;
+  document.getElementById("btn-pin").classList.toggle("active", pinMode);
+  document.getElementById("map").classList.toggle("pin-mode", pinMode);
+  if (pinMode) {
+    showPill("Tap map to place stop");
+  } else {
+    hidePill();
+  }
+  // Note: do NOT disable Leaflet's drag/touchZoom here — it causes
+  // more problems than it solves on iOS. Pin mode reads click events which
+  // still fire even when dragging is enabled.
+}
+
+// Single click handler — only fires when not panning/zooming
+map.on("click", e => {
+  if (!pinMode) return;
+  if (navigator.vibrate) navigator.vibrate(25);
+  pushStop([e.latlng.lat, e.latlng.lng], null);
+  optimizeRoute();
+});
+
+// Long-press on desktop (mouse) to add stop without pin mode
+let holdTimer = null;
+map.on("mousedown", e => {
+  if (pinMode) return;
+  holdTimer = setTimeout(() => {
     pushStop([e.latlng.lat, e.latlng.lng], null);
     optimizeRoute();
-  });
+  }, 600);
+});
+map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
 
-  let holdTimer = null;
-  map.on("mousedown", e => {
-    if (pinMode) return;
-    holdTimer = setTimeout(() => { pushStop([e.latlng.lat, e.latlng.lng], null); optimizeRoute(); }, 500);
-  });
-  map.on("mouseup mouseleave", () => clearTimeout(holdTimer));
+/* ─── GEOLOCATION ─────────────────────────────────────────────────────── */
+function startGPS() {
+  if (gpsWatcher !== null) return;
+  if (!navigator.geolocation) return;
 
-  // ─── GEOLOCATION & NAVIGATION TRACKING ────────────────────────────────
-  // ─── GEOLOCATION ──────────────────────────────────────────────────────
-  let gpsWatcher = null;
-  let userLocationMarker = null;
-  let following = true; // New state
+  gpsWatcher = navigator.geolocation.watchPosition(
+    pos => {
+      const coord = [pos.coords.latitude, pos.coords.longitude];
 
-  // Stop following if user drags the map
-  map.on('dragstart', () => { following = false; });
-
-  function startGPS() {
-    if (gpsWatcher !== null) return;
-    gpsWatcher = navigator.geolocation.watchPosition(
-      pos => {
-        const coord = [pos.coords.latitude, pos.coords.longitude];
-        
-        // If we are currently in "saved start" mode, we don't update 'start'
-        // unless explicitly told to switch via switchToGPS()
-        if (!savedStartCoord) {
-          start = coord;
-        }
-
-        // Update UI
-        if (!userLocationMarker) {
-          userLocationMarker = L.marker(coord, { icon: makePin("●", "#ff9500", "#fff") })
-            .addTo(map).bindPopup("<b>You are here</b>");
-        } else {
-          userLocationMarker.setLatLng(coord);
-        }
-
-        // Auto-pan only if we haven't manually moved the map
-        if (following && !savedStartCoord) {
-          map.setView(coord, 16);
-        }
-      },
-      (err) => console.warn("GPS error:", err),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  }
-
-  // Add this button somewhere or call it when needed to resume following
-  function resumeFollowing() {
-    following = true;
-    if (start) map.setView(start, 16);
-  }
-
-  function switchToGPS() {
-    savedStartCoord = null;
-    document.getElementById("start-banner").classList.remove("show");
-    
-    // Resume following immediately
-    following = true;
-    
-    // Clear and restart
-    if (gpsWatcher) {
-      navigator.geolocation.clearWatch(gpsWatcher);
-      gpsWatcher = null;
-    }
-    
-    // Clear the 'Saved' marker if it exists
-    map.eachLayer((layer) => {
-        if (layer instanceof L.Marker && layer !== userLocationMarker) {
-           // Optionally keep other markers, just remove the specific 'S' one
-        }
-    });
-
-    startGPS();
-    showPill("Live GPS active", 2000);
-    
-    // Force redraw
-    setTimeout(() => map.invalidateSize(), 100);
-  }
-
-  // Initial Call
-  startGPS();
-
-  // Switch back to live GPS after a saved-start was applied
-  function switchToGPS() {
-    savedStartCoord = null;
-    document.getElementById("start-banner").classList.remove("show");
-    if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
-    if (gpsWatcher !== null) {
-      navigator.geolocation.clearWatch(gpsWatcher);
-      gpsWatcher = null;
-    }
-    start = null; // will be refreshed by a new watch
-    startGPS();
-    showPill("Switched to live GPS", 2000);
-    if (stops.length > 0 && !isNavigating) optimizeRoute();
-  }
-
-  // ─── NAVIGATION SYSTEM ────────────────────────────────────────────────
-  function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Earth's radius in meters
-    const rLat1 = lat1 * Math.PI/180;
-    const rLat2 = lat2 * Math.PI/180;
-    const dLat = (lat2-lat1) * Math.PI/180;
-    const dLon = (lon2-lon1) * Math.PI/180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(rLat1) * Math.cos(rLat2) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // Distance in meters
-  }
-
-  function formatDistance(meters) {
-    const miles = meters / 1609.344;
-    if (miles < 0.1) {
-      const feet = Math.round(meters * 3.28084);
-      return `${feet} ft`;
-    }
-    return `${miles.toFixed(1)} mi`;
-  }
-
-  function updateNavRow() {
-    document.getElementById("nav-row").style.display = stops.length > 0 ? "block" : "none";
-  }
-
-  function startNavigation() {
-    if (!stops.length) { showPill("Add stops first", 1800); return; }
-    if (!routeLine) { showPill("Optimize route first", 1800); return; }
-
-    // Must use physical GPS for navigation
-    if (savedStartCoord) {
-      switchToGPS();
-    }
-
-    sortedNavStops = [...stops].sort((a, b) => a.routePos - b.routePos);
-    currentNavIndex = 0;
-    isNavigating = true;
-
-    document.body.classList.add("navigating");
-    document.getElementById("nav-overlay").classList.add("active");
-
-    updateNavOverlay();
-    if (start) map.setView(start, 18);
-  }
-
-  function stopNavigation() {
-    isNavigating = false;
-    document.body.classList.remove("navigating");
-    document.getElementById("nav-overlay").classList.remove("active");
-    if (routeLine) map.fitBounds(routeLine.getBounds(), { padding: [28,28] });
-    
-    // Reset marker icons back to red optimized state
-    markers.forEach((m, i) => {
-      m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff"));
-    });
-  }
-
-  function updateNavOverlay() {
-    if (!isNavigating) return;
-
-    if (currentNavIndex >= sortedNavStops.length) {
-      document.getElementById("nav-title").textContent = "Route Complete";
-      document.getElementById("nav-address").textContent = "All stops reached";
-      document.getElementById("nav-distance").textContent = "✓";
-      return;
-    }
-
-    const target = sortedNavStops[currentNavIndex];
-    document.getElementById("nav-title").textContent = `Heading to Stop ${target.routePos}`;
-    document.getElementById("nav-address").textContent = target.address;
-
-    if (start) {
-      const dist = haversineDistance(start[0], start[1], target.coord[0], target.coord[1]);
-      document.getElementById("nav-distance").textContent = formatDistance(dist);
-    }
-  }
-
-  function checkNavProgress() {
-    if (currentNavIndex >= sortedNavStops.length) return;
-    const target = sortedNavStops[currentNavIndex];
-    const dist = haversineDistance(start[0], start[1], target.coord[0], target.coord[1]);
-
-    if (dist < 40) { // arrived within ~130 feet
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      showPill(`Arrived at Stop ${target.routePos}`, 3000);
-      
-      // Visually check off the marker on map
-      const stopMarkerIndex = stops.findIndex(s => s === target);
-      if (stopMarkerIndex !== -1 && markers[stopMarkerIndex]) {
-         markers[stopMarkerIndex].setIcon(makePin("✓", "#00c864", "#fff"));
+      // Only update 'start' if we're using live GPS (no saved start override)
+      if (!savedStartCoord) {
+        start = coord;
       }
 
-      currentNavIndex++;
-      if (currentNavIndex >= sortedNavStops.length) {
-        showPill("Route Complete!", 4000);
-        updateNavOverlay();
-        setTimeout(stopNavigation, 5000); // Auto-end after a few seconds
+      // Update / create the "you are here" marker
+      // FIX: use single 'userMarker' variable consistently
+      if (!userMarker) {
+        userMarker = L.marker(coord, { icon: makePin("●", "#ff9500", "#fff"), zIndexOffset: 1000 })
+          .addTo(map)
+          .bindPopup("<b>You are here</b>");
       } else {
-        updateNavOverlay();
+        userMarker.setLatLng(coord);
       }
+
+      // Auto-pan only if following and not using a saved start
+      if (following && !savedStartCoord) {
+        map.setView(coord, map.getZoom() < 14 ? 16 : map.getZoom());
+      }
+
+      // FIX: call navigation progress check here — this was never wired up
+      if (isNavigating && start) {
+        checkNavProgress();
+      }
+    },
+    err => console.warn("GPS error:", err.message),
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+  );
+}
+
+// FIX: single switchToGPS() definition (was defined twice, second silently overwrote first)
+function switchToGPS() {
+  savedStartCoord = null;
+  document.getElementById("start-banner").classList.remove("show");
+
+  // Remove the saved-start 'S' marker from map
+  if (savedStartMarker) {
+    map.removeLayer(savedStartMarker);
+    savedStartMarker = null;
+  }
+
+  // Restart GPS watcher fresh
+  if (gpsWatcher !== null) {
+    navigator.geolocation.clearWatch(gpsWatcher);
+    gpsWatcher = null;
+  }
+  start = null; // will be populated by the new watcher
+  following = true;
+  startGPS();
+  showPill("Switched to live GPS", 2000);
+
+  if (stops.length > 0 && !isNavigating) optimizeRoute();
+}
+
+/* ─── HAVERSINE / FORMAT ──────────────────────────────────────────────── */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const r1 = lat1 * Math.PI / 180, r2 = lat2 * Math.PI / 180;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(r1) * Math.cos(r2) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(meters) {
+  const miles = meters / 1609.344;
+  if (miles < 0.1) return `${Math.round(meters * 3.28084)} ft`;
+  return `${miles.toFixed(1)} mi`;
+}
+
+/* ─── NAVIGATION ──────────────────────────────────────────────────────── */
+function updateNavRow() {
+  document.getElementById("nav-row").style.display = stops.length > 0 ? "block" : "none";
+}
+
+function startNavigation() {
+  if (!stops.length)  { showPill("Add stops first", 1800);       return; }
+  if (!routeLine)     { showPill("Optimize route first", 1800);  return; }
+  if (!start)         { showPill("Waiting for GPS…", 1800);      return; }
+
+  // Can't navigate with a saved start — need real GPS position
+  if (savedStartCoord) switchToGPS();
+
+  sortedNavStops = [...stops].sort((a, b) => a.routePos - b.routePos);
+  currentNavIndex = 0;
+  isNavigating = true;
+  following = true;
+
+  document.body.classList.add("navigating");
+  document.getElementById("nav-overlay").classList.add("active");
+  updateNavOverlay();
+  if (start) map.setView(start, 18);
+}
+
+function stopNavigation() {
+  isNavigating = false;
+  document.body.classList.remove("navigating");
+  document.getElementById("nav-overlay").classList.remove("active");
+  if (routeLine) map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
+  // Restore marker icons
+  markers.forEach((m, i) => {
+    if (stops[i]) m.setIcon(makePin(stops[i].routePos || "·", stops[i].routePos ? "#e8293a" : "#3a1a1a", "#fff"));
+  });
+}
+
+function updateNavOverlay() {
+  if (!isNavigating) return;
+  if (currentNavIndex >= sortedNavStops.length) {
+    document.getElementById("nav-title").textContent   = "Route Complete";
+    document.getElementById("nav-address").textContent = "All stops reached";
+    document.getElementById("nav-distance").textContent = "✓";
+    return;
+  }
+  const target = sortedNavStops[currentNavIndex];
+  document.getElementById("nav-title").textContent   = `Stop ${target.routePos} of ${sortedNavStops.length}`;
+  document.getElementById("nav-address").textContent = target.address;
+  if (start) {
+    const d = haversineDistance(start[0], start[1], target.coord[0], target.coord[1]);
+    document.getElementById("nav-distance").textContent = formatDistance(d);
+  }
+}
+
+function checkNavProgress() {
+  if (!isNavigating || currentNavIndex >= sortedNavStops.length) return;
+  const target = sortedNavStops[currentNavIndex];
+  const dist   = haversineDistance(start[0], start[1], target.coord[0], target.coord[1]);
+
+  if (dist < 40) { // arrived within ~130 ft
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    showPill(`Arrived at Stop ${target.routePos}`, 3000);
+
+    // Check off the marker visually
+    const idx = stops.indexOf(target);
+    if (idx !== -1 && markers[idx]) {
+      markers[idx].setIcon(makePin("✓", "#00c864", "#fff"));
+    }
+
+    currentNavIndex++;
+    if (currentNavIndex >= sortedNavStops.length) {
+      showPill("Route Complete! 🎉", 4000);
+      updateNavOverlay();
+      setTimeout(stopNavigation, 5000);
+    } else {
+      updateNavOverlay();
     }
   }
+}
 
-  // ─── REVERSE GEOCODE ──────────────────────────────────────────────────
-  async function reverseGeocode(lat, lng) {
-    try {
-      const r = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        { headers: { Accept: "application/json" } }
-      ).then(r => r.json());
-      const a = r.address || {};
-      const num  = a.house_number || "";
-      const road = a.road || a.pedestrian || a.cycleway || a.path || "";
-      const city = a.city || a.town || a.village || a.suburb || a.neighbourhood || "";
-      if (road && city) return `${num ? num+" ":""}${road}, ${city}`;
-      if (road)         return `${num ? num+" ":""}${road}`;
-      if (r.display_name) return r.display_name.split(",").slice(0,2).join(",").trim();
-    } catch {}
-    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-  }
-
-  // ─── FIXED PROXIMITY GEOCODER ─────────────────────────────────────────
-  async function geocode(query) {
-    if (!start) throw new Error("No start location available");
-    const [lat, lon] = start;
-
-    // Build a proper viewbox (left, top, right, bottom)
-    // 0.25 degrees is roughly ~15-17 miles depending on latitude
-    const left   = lon - 0.25;
-    const top    = lat + 0.25;
-    const right  = lon + 0.25;
-    const bottom = lat - 0.25;
-    const vb = `${left},${top},${right},${bottom}`;
-
-    // Request up to 10 results from Nominatim so we can sort them mathematically ourselves
-    const results = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&viewbox=${vb}`,
+/* ─── REVERSE GEOCODE ─────────────────────────────────────────────────── */
+async function reverseGeocode(lat, lng) {
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
       { headers: { Accept: "application/json" } }
     ).then(r => r.json());
+    const a = r.address || {};
+    const num  = a.house_number || "";
+    const road = a.road || a.pedestrian || a.cycleway || a.path || "";
+    const city = a.city || a.town || a.village || a.suburb || a.neighbourhood || "";
+    if (road && city) return `${num ? num + " " : ""}${road}, ${city}`;
+    if (road)         return `${num ? num + " " : ""}${road}`;
+    if (r.display_name) return r.display_name.split(",").slice(0, 2).join(",").trim();
+  } catch {}
+  return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
 
-    if (!results || results.length === 0) {
-        throw new Error("Address or POI not found");
-    }
+/* ─── GEOCODE (search) ────────────────────────────────────────────────── */
+async function geocode(query) {
+  if (!start) throw new Error("No start location yet — enable GPS first");
+  const [lat, lon] = start;
+  const vb = `${lon - 0.25},${lat + 0.25},${lon + 0.25},${lat - 0.25}`;
+  const results = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&viewbox=${vb}`,
+    { headers: { Accept: "application/json" } }
+  ).then(r => r.json());
 
-    // Mathematically find the absolute closest result using Haversine formula
-    let closestItem = results[0];
-    let minDistance = Infinity;
+  if (!results || !results.length) throw new Error("Address not found");
 
-    for (const item of results) {
-        const itemLat = parseFloat(item.lat);
-        const itemLon = parseFloat(item.lon);
-        
-        const distanceToItem = haversineDistance(lat, lon, itemLat, itemLon);
-        
-        if (distanceToItem < minDistance) {
-            minDistance = distanceToItem;
-            closestItem = item;
-        }
-    }
-
-    return { 
-        coord: [+closestItem.lat, +closestItem.lon], 
-        display: closestItem.display_name 
-    };
+  // Pick the closest result to current location
+  let best = results[0], bestDist = Infinity;
+  for (const item of results) {
+    const d = haversineDistance(lat, lon, +item.lat, +item.lon);
+    if (d < bestDist) { bestDist = d; best = item; }
   }
+  return { coord: [+best.lat, +best.lon], display: best.display_name };
+}
 
-  function shortenAddress(display) {
-    const parts = display.split(",").map(s => s.trim())
-      .filter(p => p.length > 1 && !/^\d{4,}$/.test(p));
-    return parts.slice(0, 2).join(", ");
-  }
+function shortenAddress(display) {
+  return display.split(",").map(s => s.trim())
+    .filter(p => p.length > 1 && !/^\d{4,}$/.test(p))
+    .slice(0, 2).join(", ");
+}
 
-  // ─── ADD STOP VIA SEARCH ──────────────────────────────────────────────
-  async function addStop() {
-    const input = document.getElementById("address");
-    const btn   = document.getElementById("btn-add");
-    const val   = input.value.trim();
-    if (!val || !start) return;
-    btn.textContent = "…"; btn.style.opacity = ".55";
-    try {
-      const { coord, display } = await geocode(val);
-      pushStop(coord, shortenAddress(display));
-      input.value = "";
-      optimizeRoute();
-    } catch {
-      input.style.borderColor = "#e8293a";
-      input.style.background  = "rgba(232,41,58,.08)";
-      setTimeout(() => { input.style.borderColor = ""; input.style.background = ""; }, 1400);
-    } finally {
-      btn.textContent = "Add"; btn.style.opacity = "";
-    }
-  }
+/* ─── ADD STOP VIA SEARCH ─────────────────────────────────────────────── */
+async function addStop() {
+  const input = document.getElementById("address");
+  const btn   = document.getElementById("btn-add");
+  const val   = input.value.trim();
+  if (!val) return;
+  if (!start) { showPill("Waiting for GPS…", 2000); return; }
 
-  // ─── PUSH STOP ────────────────────────────────────────────────────────
-  async function pushStop(coord, knownAddress) {
-    const stopObj = { coord, address: knownAddress || "Locating…", routePos: 0 };
-    stops.push(stopObj);
-
-    const m = L.marker(coord, { icon: makePin("·", "#3a1a1a", "#aaa") })
-      .addTo(map).bindPopup(stopObj.address);
-    markers.push(m);
-
-    document.getElementById("empty-state").style.display = "none";
-    updateSaveBtn(); updateNavRow(); renderStops();
-
-    if (!knownAddress) {
-      const addr = await reverseGeocode(coord[0], coord[1]);
-      stopObj.address = addr;
-      m.setPopupContent(addr);
-      renderStops();
-    }
-  }
-
-  // ─── REMOVE STOP ──────────────────────────────────────────────────────
-  function removeStop(idx) {
-    map.removeLayer(markers[idx]);
-    markers.splice(idx, 1);
-    stops.splice(idx, 1);
-    if (stops.length === 0) {
-      clearPolyline();
-      document.getElementById("empty-state").style.display = "";
-    } else {
-      stops.forEach(s => s.routePos = 0);
-      optimizeRoute();
-    }
-    updateSaveBtn(); updateNavRow(); renderStops();
-  }
-
-  // ─── RENDER STOP LIST ─────────────────────────────────────────────────
-  function renderStops() {
-    const isOptimized = stops.some(s => s.routePos > 0);
-    const items = stops.map((s, i) => ({ ...s, _i: i }));
-    if (isOptimized) items.sort((a, b) => a.routePos - b.routePos);
-
-    const lbl = document.getElementById("stops-label");
-    lbl.style.display = stops.length ? "flex" : "none";
-    lbl.textContent   = isOptimized ? "Optimized Order" : "Stops";
-
-    document.getElementById("stops").innerHTML = items.map(s => `
-      <div class="stop-item">
-        <div class="stop-num${s.routePos ? "" : " pending"}">${s.routePos || "·"}</div>
-        <div class="stop-meta">
-          <span class="stop-addr${s.address === "Locating…" ? " loading" : ""}">${escHtml(s.address)}</span>
-          <span class="stop-coord">${s.coord[0].toFixed(4)}, ${s.coord[1].toFixed(4)}</span>
-        </div>
-        <button class="stop-remove" onclick="removeStop(${s._i})" aria-label="Remove stop">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>`).join("");
-
-    const wrap = document.getElementById("stops-wrap");
-    document.getElementById("stops-outer")
-      .classList.toggle("overflows", wrap.scrollHeight > wrap.clientHeight + 4);
-  }
-
-  // ─── CLEAR POLYLINE ───────────────────────────────────────────────────
-  function clearPolyline() {
-    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-  }
-
-  // ─── CLEAR ALL ────────────────────────────────────────────────────────
-  function clearAll() {
-    stopNavigation();
-    optimizeGen++;
-    clearPolyline();
-    markers.forEach(m => map.removeLayer(m));
-    markers = []; stops = [];
-    document.getElementById("stops").innerHTML = "";
-    document.getElementById("empty-state").style.display = "";
-    document.getElementById("stops-label").style.display  = "none";
-    document.getElementById("stops-outer").classList.remove("overflows");
-    updateSaveBtn(); updateNavRow();
-  }
-
-  // ─── OPTIMIZE ROUTE ───────────────────────────────────────────────────
-  async function optimizeRoute() {
-    if (!start || stops.length === 0) return;
-    const myGen = optimizeGen;
-    clearPolyline();
-
-    const coords = [start, ...stops.map(s => s.coord)].map(c => `${c[1]},${c[0]}`).join(";");
-    try {
-      const data = await fetch(
-        `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
-      ).then(r => r.json());
-
-      if (optimizeGen !== myGen) return;
-      if (!data.trips) return;
-
-      stops.forEach((s, i) => { s.routePos = data.waypoints[i + 1].waypoint_index; });
-      const minPos = Math.min(...stops.map(s => s.routePos));
-      stops.forEach(s => s.routePos = s.routePos - minPos + 1);
-
-      markers.forEach((m, i) => m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff")));
-      renderStops(); updateNavRow();
-
-      const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      routeLine = L.polyline(pts, { color:"#e8293a", weight:4.5, opacity:.9, lineCap:"round", lineJoin:"round" }).addTo(map);
-      map.fitBounds(routeLine.getBounds(), { padding: [28,28] });
-    } catch(err) { console.error(err); }
-  }
-
-  // ─── NIGHT MODE ───────────────────────────────────────────────────────
-  function toggleNightMode() {
-    darkMode = !darkMode;
-    document.getElementById("btn-night").classList.toggle("active", darkMode);
-    if (darkMode) { map.removeLayer(lightTiles); darkTiles.addTo(map); }
-    else          { map.removeLayer(darkTiles);  lightTiles.addTo(map); }
-    if (stops.length > 0 && !isNavigating) optimizeRoute();
-  }
-
-  function updateSaveBtn() {
-    document.getElementById("btn-save-route").classList.toggle("has-stops", stops.length > 0);
-  }
-
-  // ─── SAVED ROUTES (localStorage) ─────────────────────────────────────
-  const LS_KEY = "rr_saved_routes_v3"; // v3 — adds savedStart field
-  function loadSavedRoutes() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; } }
-  function persistRoutes(r)  { localStorage.setItem(LS_KEY, JSON.stringify(r)); }
-
-  function refreshBadge() {
-    const n = loadSavedRoutes().length;
-    const badge = document.getElementById("routes-badge");
-    badge.textContent = n;
-    badge.classList.toggle("show", n > 0);
-  }
-
-  // ─── SAVE MODAL ───────────────────────────────────────────────────────
-  function openSaveModal() {
-    if (!stops.length) { showPill("Add stops first", 1800); return; }
-    document.getElementById("save-modal-sub").textContent =
-      `${stops.length} stop${stops.length !== 1 ? "s" : ""} will be saved`;
-    const inp = document.getElementById("route-name-input");
-    inp.value = "";
-    // Pre-check the toggle if we have a start; default unchecked
-    document.getElementById("save-start-toggle").checked = false;
-    document.getElementById("backdrop").classList.add("open");
-    document.getElementById("save-modal").classList.add("open");
-    setTimeout(() => inp.focus(), 350);
-  }
-  function closeSaveModal() {
-    document.getElementById("backdrop").classList.remove("open");
-    document.getElementById("save-modal").classList.remove("open");
-    document.getElementById("route-name-input").blur();
-  }
-  function confirmSaveRoute() {
-    const inp  = document.getElementById("route-name-input");
-    const name = inp.value.trim();
-    if (!name) {
-      inp.style.borderColor = "#e8293a"; inp.style.background = "rgba(232,41,58,.08)";
-      setTimeout(() => { inp.style.borderColor = ""; inp.style.background = ""; }, 1200);
-      return;
-    }
-    const saveStart = document.getElementById("save-start-toggle").checked;
-    const routes = loadSavedRoutes();
-    routes.unshift({
-      id: Date.now(), name,
-      stops: stops.map(s => ({ coord: s.coord, address: s.address })),
-      savedStart: saveStart && start ? start : null,
-      savedAt: new Date().toISOString()
-    });
-    persistRoutes(routes); refreshBadge();
-    closeSaveModal();
-    showPill(saveStart ? "Route + start location saved ✓" : "Route saved ✓", 2000);
-  }
-
-  // ─── ROUTES DRAWER ────────────────────────────────────────────────────
-  function openRoutesDrawer()  { renderDrawerList(); document.getElementById("backdrop").classList.add("open"); document.getElementById("routes-drawer").classList.add("open"); }
-  function closeRoutesDrawer() { document.getElementById("backdrop").classList.remove("open"); document.getElementById("routes-drawer").classList.remove("open"); }
-  function closeAll()          { closeSaveModal(); closeRoutesDrawer(); }
-
-  function renderDrawerList() {
-    const routes = loadSavedRoutes();
-    const listEl = document.getElementById("drawer-list");
-    if (!routes.length) {
-      listEl.innerHTML = `<div class="drawer-empty"><strong>No saved routes</strong>Build a route and tap Save</div>`;
-      return;
-    }
-    listEl.innerHTML = routes.map(r => {
-      const date  = new Date(r.savedAt).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
-      const cnt   = r.stops.length;
-      const badge = r.savedStart
-        ? `<span class="route-start-badge">
-             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-             Fixed start
-           </span>`
-        : "";
-      return `<div class="route-card" id="rc-${r.id}">
-        <div class="route-icon">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-        </div>
-        <div class="route-info">
-          <div class="route-name">${escHtml(r.name)}</div>
-          <div class="route-meta">${cnt} stop${cnt!==1?"s":""} · ${date} ${badge}</div>
-        </div>
-        <div class="route-actions">
-          <button class="route-btn load" onclick="loadRoute(${r.id})" title="Load route">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
-          </button>
-          <button class="route-btn del" onclick="askDeleteRoute(${r.id})" title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          </button>
-        </div>
-        <div class="route-confirm">
-          <span>Delete "${escHtml(r.name)}"?</span>
-          <button class="route-confirm-no"  onclick="cancelDelete(${r.id})">Keep</button>
-          <button class="route-confirm-yes" onclick="confirmDelete(${r.id})">Delete</button>
-        </div>
-      </div>`;
-    }).join("");
-  }
-
-  function escHtml(s) {
-    return String(s).replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,"&quot;");
-  }
-
-  async function loadRoute(id) {
-    const route = loadSavedRoutes().find(r => r.id === id);
-    if (!route) return;
-
-    clearAll();
-    closeRoutesDrawer();
-
-    // If route has a saved start, apply it and suppress GPS overrides
-    if (route.savedStart) {
-      savedStartCoord = route.savedStart;
-      start = route.savedStart;
-      map.setView(start, 14);
-      // Show a pin for the saved start
-      L.marker(start, { icon: makePin("S", "#ffb400", "#fff") })
-        .addTo(map).bindPopup("<b>Saved start point</b>");
-      document.getElementById("start-banner").classList.add("show");
-    } else {
-      savedStartCoord = null;
-      document.getElementById("start-banner").classList.remove("show");
-    }
-
-    for (const s of route.stops) await pushStop(s.coord, s.address);
+  btn.textContent = "…"; btn.style.opacity = ".55";
+  input.disabled = true;
+  try {
+    const { coord, display } = await geocode(val);
+    await pushStop(coord, shortenAddress(display));
+    input.value = "";
     optimizeRoute();
+  } catch {
+    input.style.borderColor = "#e8293a";
+    input.style.background  = "rgba(232,41,58,.08)";
+    showPill("Address not found", 1800);
+    setTimeout(() => { input.style.borderColor = ""; input.style.background = ""; }, 1400);
+  } finally {
+    btn.textContent = "Add"; btn.style.opacity = "";
+    input.disabled = false;
+  }
+}
 
-    const startNote = route.savedStart ? " (saved start)" : "";
-    showPill(`Loaded: ${route.name}${startNote}`, 2400);
+/* ─── PUSH STOP ───────────────────────────────────────────────────────── */
+async function pushStop(coord, knownAddress) {
+  const stopObj = { coord, address: knownAddress || "Locating…", routePos: 0 };
+  stops.push(stopObj);
+
+  const m = L.marker(coord, { icon: makePin("·", "#3a1a1a", "#aaa") })
+    .addTo(map)
+    .bindPopup(stopObj.address);
+  markers.push(m);
+
+  document.getElementById("empty-state").style.display = "none";
+  updateSaveBtn(); updateNavRow(); renderStops();
+
+  if (!knownAddress) {
+    const addr = await reverseGeocode(coord[0], coord[1]);
+    stopObj.address = addr;
+    m.setPopupContent(addr);
+    renderStops();
+  }
+}
+
+/* ─── REMOVE STOP ─────────────────────────────────────────────────────── */
+function removeStop(idx) {
+  map.removeLayer(markers[idx]);
+  markers.splice(idx, 1);
+  stops.splice(idx, 1);
+  if (!stops.length) {
+    clearPolyline();
+    document.getElementById("empty-state").style.display = "";
+  } else {
+    stops.forEach(s => s.routePos = 0);
+    optimizeRoute();
+  }
+  updateSaveBtn(); updateNavRow(); renderStops();
+}
+
+/* ─── RENDER STOP LIST ────────────────────────────────────────────────── */
+function renderStops() {
+  const isOptimized = stops.some(s => s.routePos > 0);
+  const items = stops.map((s, i) => ({ ...s, _i: i }));
+  if (isOptimized) items.sort((a, b) => a.routePos - b.routePos);
+
+  const lbl = document.getElementById("stops-label");
+  lbl.style.display = stops.length ? "flex" : "none";
+  lbl.textContent   = isOptimized ? "Optimized Order" : "Stops";
+
+  document.getElementById("stops").innerHTML = items.map(s => `
+    <div class="stop-item">
+      <div class="stop-num${s.routePos ? "" : " pending"}">${s.routePos || "·"}</div>
+      <div class="stop-meta">
+        <span class="stop-addr${s.address === "Locating…" ? " loading" : ""}">${escHtml(s.address)}</span>
+        <span class="stop-coord">${s.coord[0].toFixed(4)}, ${s.coord[1].toFixed(4)}</span>
+      </div>
+      <button class="stop-remove" onclick="removeStop(${s._i})" aria-label="Remove stop">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>`).join("");
+
+  const wrap  = document.getElementById("stops-wrap");
+  const outer = document.getElementById("stops-outer");
+  // rAF so DOM has updated before we measure
+  requestAnimationFrame(() => {
+    outer.classList.toggle("overflows", wrap.scrollHeight > wrap.clientHeight + 4);
+  });
+}
+
+/* ─── POLYLINE ────────────────────────────────────────────────────────── */
+function clearPolyline() {
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+}
+
+/* ─── CLEAR ALL ───────────────────────────────────────────────────────── */
+function clearAll() {
+  stopNavigation();
+  optimizeGen++;
+  clearPolyline();
+  markers.forEach(m => map.removeLayer(m));
+  markers = []; stops = [];
+
+  // FIX: also remove the saved-start 'S' marker
+  if (savedStartMarker) {
+    map.removeLayer(savedStartMarker);
+    savedStartMarker = null;
   }
 
-  function askDeleteRoute(id) {
-    document.querySelectorAll(".route-card.confirming").forEach(el => el.classList.remove("confirming"));
-    document.getElementById(`rc-${id}`)?.classList.add("confirming");
+  document.getElementById("stops").innerHTML       = "";
+  document.getElementById("empty-state").style.display = "";
+  document.getElementById("stops-label").style.display  = "none";
+  document.getElementById("stops-outer").classList.remove("overflows");
+  updateSaveBtn(); updateNavRow();
+}
+
+/* ─── OPTIMIZE ROUTE ──────────────────────────────────────────────────── */
+async function optimizeRoute() {
+  if (!start || !stops.length) return;
+  const myGen = ++optimizeGen;
+  clearPolyline();
+
+  const coords = [start, ...stops.map(s => s.coord)]
+    .map(c => `${c[1]},${c[0]}`).join(";");
+
+  try {
+    const data = await fetch(
+      `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
+    ).then(r => r.json());
+
+    if (optimizeGen !== myGen) return; // superseded by newer call
+    if (!data.trips?.length)  return;
+
+    stops.forEach((s, i) => { s.routePos = data.waypoints[i + 1].waypoint_index; });
+    const minPos = Math.min(...stops.map(s => s.routePos));
+    stops.forEach(s => { s.routePos = s.routePos - minPos + 1; });
+
+    markers.forEach((m, i) => m.setIcon(makePin(stops[i].routePos, "#e8293a", "#fff")));
+    renderStops(); updateNavRow();
+
+    const pts = data.trips[0].geometry.coordinates.map(c => [c[1], c[0]]);
+    routeLine = L.polyline(pts, {
+      color: "#e8293a", weight: 4.5, opacity: .9, lineCap: "round", lineJoin: "round"
+    }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
+  } catch (err) {
+    console.error("OSRM error:", err);
   }
-  function cancelDelete(id)  { document.getElementById(`rc-${id}`)?.classList.remove("confirming"); }
-  function confirmDelete(id) { persistRoutes(loadSavedRoutes().filter(r => r.id !== id)); refreshBadge(); renderDrawerList(); }
+}
 
-  // ─── BOOT ─────────────────────────────────────────────────────────────
-  refreshBadge();
+/* ─── NIGHT MODE ──────────────────────────────────────────────────────── */
+function toggleNightMode() {
+  darkMode = !darkMode;
+  document.getElementById("btn-night").classList.toggle("active", darkMode);
+  if (darkMode) { map.removeLayer(lightTiles); darkTiles.addTo(map); }
+  else          { map.removeLayer(darkTiles);  lightTiles.addTo(map); }
+}
 
-  document.getElementById("stops-wrap").addEventListener("touchmove", e => {
-    e.stopPropagation();
-  }, { passive: true });
+function updateSaveBtn() {
+  document.getElementById("btn-save-route").classList.toggle("has-stops", stops.length > 0);
+}
 
-  document.getElementById("map").addEventListener("touchmove", e => {
-    if (!pinMode) return;
-    e.preventDefault();
-  }, { passive: false });
-  
-  // ─── BOOT ─────────────────────────────────────────────────────────────
-  refreshBadge();
-  
-  // Fix map rendering on mobile load
-  window.addEventListener('load', () => {
-    setTimeout(() => map.invalidateSize(), 500);
+/* ─── SAVED ROUTES ────────────────────────────────────────────────────── */
+const LS_KEY = "rr_saved_routes_v3";
+function loadSavedRoutes() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+}
+function persistRoutes(r) { localStorage.setItem(LS_KEY, JSON.stringify(r)); }
+
+function refreshBadge() {
+  const n = loadSavedRoutes().length;
+  const badge = document.getElementById("routes-badge");
+  badge.textContent = n;
+  badge.classList.toggle("show", n > 0);
+}
+
+/* ─── SAVE MODAL ──────────────────────────────────────────────────────── */
+function openSaveModal() {
+  if (!stops.length) { showPill("Add stops first", 1800); return; }
+  document.getElementById("save-modal-sub").textContent =
+    `${stops.length} stop${stops.length !== 1 ? "s" : ""} will be saved`;
+  const inp = document.getElementById("route-name-input");
+  inp.value = "";
+  document.getElementById("save-start-toggle").checked = false;
+  document.getElementById("backdrop").classList.add("open");
+  document.getElementById("save-modal").classList.add("open");
+  setTimeout(() => inp.focus(), 350);
+}
+function closeSaveModal() {
+  document.getElementById("backdrop").classList.remove("open");
+  document.getElementById("save-modal").classList.remove("open");
+  document.getElementById("route-name-input").blur();
+}
+function confirmSaveRoute() {
+  const inp  = document.getElementById("route-name-input");
+  const name = inp.value.trim();
+  if (!name) {
+    inp.style.borderColor = "#e8293a"; inp.style.background = "rgba(232,41,58,.08)";
+    setTimeout(() => { inp.style.borderColor = ""; inp.style.background = ""; }, 1200);
+    return;
+  }
+  const saveStart = document.getElementById("save-start-toggle").checked;
+  const routes = loadSavedRoutes();
+  routes.unshift({
+    id: Date.now(), name,
+    stops: stops.map(s => ({ coord: s.coord, address: s.address })),
+    savedStart: saveStart && start ? start : null,
+    savedAt: new Date().toISOString()
   });
+  persistRoutes(routes); refreshBadge();
+  closeSaveModal();
+  showPill(saveStart ? "Route + start saved ✓" : "Route saved ✓", 2000);
+}
 
-  // Handle orientation/resize events
-  window.addEventListener('resize', () => {
-    map.invalidateSize();
-  });
-  
+/* ─── ROUTES DRAWER ───────────────────────────────────────────────────── */
+function openRoutesDrawer() {
+  renderDrawerList();
+  document.getElementById("backdrop").classList.add("open");
+  document.getElementById("routes-drawer").classList.add("open");
+}
+function closeRoutesDrawer() {
+  document.getElementById("backdrop").classList.remove("open");
+  document.getElementById("routes-drawer").classList.remove("open");
+}
+function closeAll() { closeSaveModal(); closeRoutesDrawer(); }
+
+function renderDrawerList() {
+  const routes = loadSavedRoutes();
+  const listEl = document.getElementById("drawer-list");
+  if (!routes.length) {
+    listEl.innerHTML = `<div class="drawer-empty"><strong>No saved routes</strong>Build a route and tap Save</div>`;
+    return;
+  }
+  listEl.innerHTML = routes.map(r => {
+    const date  = new Date(r.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const cnt   = r.stops.length;
+    const badge = r.savedStart
+      ? `<span class="route-start-badge">
+           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+           Fixed start
+         </span>`
+      : "";
+    return `<div class="route-card" id="rc-${r.id}">
+      <div class="route-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div class="route-info">
+        <div class="route-name">${escHtml(r.name)}</div>
+        <div class="route-meta">${cnt} stop${cnt !== 1 ? "s" : ""} · ${date} ${badge}</div>
+      </div>
+      <div class="route-actions">
+        <button class="route-btn load" onclick="loadRoute(${r.id})" title="Load route">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+        </button>
+        <button class="route-btn del" onclick="askDeleteRoute(${r.id})" title="Delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+      <div class="route-confirm">
+        <span>Delete "${escHtml(r.name)}"?</span>
+        <button class="route-confirm-no"  onclick="cancelDelete(${r.id})">Keep</button>
+        <button class="route-confirm-yes" onclick="confirmDelete(${r.id})">Delete</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function loadRoute(id) {
+  const route = loadSavedRoutes().find(r => r.id === id);
+  if (!route) return;
+
+  clearAll();
+  closeRoutesDrawer();
+
+  if (route.savedStart) {
+    savedStartCoord = route.savedStart;
+    start = route.savedStart;
+    map.setView(start, 14);
+    // FIX: store the marker reference so clearAll() can remove it later
+    savedStartMarker = L.marker(start, { icon: makePin("S", "#ffb400", "#000") })
+      .addTo(map)
+      .bindPopup("<b>Saved start point</b>");
+    document.getElementById("start-banner").classList.add("show");
+  } else {
+    savedStartCoord = null;
+    document.getElementById("start-banner").classList.remove("show");
+  }
+
+  for (const s of route.stops) await pushStop(s.coord, s.address);
+  optimizeRoute();
+  showPill(`Loaded: ${route.name}${route.savedStart ? " (fixed start)" : ""}`, 2400);
+}
+
+function askDeleteRoute(id) {
+  document.querySelectorAll(".route-card.confirming").forEach(el => el.classList.remove("confirming"));
+  document.getElementById(`rc-${id}`)?.classList.add("confirming");
+}
+function cancelDelete(id)  { document.getElementById(`rc-${id}`)?.classList.remove("confirming"); }
+function confirmDelete(id) {
+  persistRoutes(loadSavedRoutes().filter(r => r.id !== id));
+  refreshBadge(); renderDrawerList();
+}
+
+/* ─── BOOT ────────────────────────────────────────────────────────────── */
+// FIX: refreshBadge() called once (was called twice)
+refreshBadge();
+startGPS();
+
+// Stops list: allow vertical touch scroll without interfering with map
+document.getElementById("stops-wrap").addEventListener("touchmove", e => {
+  e.stopPropagation();
+}, { passive: true });
+
+// Resize / orientation change: redraw map
+window.addEventListener("resize", () => {
+  map.invalidateSize();
+});
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => map.invalidateSize(), 400);
+});
+// Initial size fix for slow-loading tile layers
+window.addEventListener("load", () => {
+  setTimeout(() => map.invalidateSize(), 300);
+});
 </script>
 </body>
 </html>
