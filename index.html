@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>SRP</title>
-<link rel="icon" type="image/png" href="https://i.ibb.co/99L8Z3HR/srplogo.png"/>
-<link rel="apple-touch-icon" href="https://i.ibb.co/99L8Z3HR/srplogo.png"/>
+<link rel="apple-touch-icon" id="ati-link"/>
+<link rel="manifest"         id="manifest-link"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
@@ -1321,6 +1321,71 @@ if (synth) {
 requestAnimationFrame(() => map.invalidateSize());
 window.addEventListener("resize",            () => map.invalidateSize());
 window.addEventListener("orientationchange", () => setTimeout(() => map.invalidateSize(), 300));
+
+/* ── HOME SCREEN ICON ─────────────────────────────────────────────────── */
+(function buildIcon() {
+  const S  = 512;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g  = cv.getContext('2d');
+
+  // Background
+  g.fillStyle = '#060405';
+  g.fillRect(0, 0, S, S);
+
+  // Route line with glow
+  const pts = [[80,345],[205,195],[320,260],[435,118]];
+  [['rgba(227,41,58,.18)', 32], ['#e3293a', 10]].forEach(([col, lw]) => {
+    g.beginPath();
+    pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
+    g.strokeStyle = col; g.lineWidth = lw;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.stroke();
+  });
+
+  // Stop dots
+  pts.forEach(([x, y], i) => {
+    const isEnd = i === 0 || i === pts.length - 1;
+    g.beginPath(); g.arc(x, y, isEnd ? 22 : 14, 0, Math.PI * 2);
+    g.fillStyle = '#e3293a'; g.fill();
+    if (!isEnd) {                               // hollow middle dots
+      g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2);
+      g.fillStyle = '#060405'; g.fill();
+    }
+  });
+
+  // "SRP" — each letter a different color
+  g.font         = '800 158px Impact,"Arial Black",Arial,sans-serif';
+  g.textBaseline = 'bottom';
+  g.textAlign    = 'left';
+  const letters  = [['S','#ede5e6'],['R','#e3293a'],['P','#ede5e6']];
+  const widths   = letters.map(([l]) => g.measureText(l).width);
+  const gap      = 6;
+  const total    = widths.reduce((a,b)=>a+b,0) + gap * (letters.length - 1);
+  let x          = (S - total) / 2;
+  letters.forEach(([l, col], i) => {
+    g.fillStyle = col;
+    g.fillText(l, x, S - 34);
+    x += widths[i] + gap;
+  });
+
+  cv.toBlob(blob => {
+    const iconUrl = URL.createObjectURL(blob);
+
+    // Apple touch icon (iOS Add to Home Screen)
+    document.getElementById('ati-link').href = iconUrl;
+
+    // Web App Manifest (Android / Chrome PWA)
+    const manifest = {
+      name: 'Simple Route Planner', short_name: 'SRP',
+      start_url: '.', display: 'standalone',
+      background_color: '#060405', theme_color: '#060405',
+      icons: [{ src: iconUrl, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }]
+    };
+    const mUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
+    document.getElementById('manifest-link').href = mUrl;
+  }, 'image/png');
+})();
 </script>
 </body>
 </html>
