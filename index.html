@@ -685,61 +685,72 @@
   // ─── GEOLOCATION ──────────────────────────────────────────────────────
   let gpsWatcher = null;
   let userLocationMarker = null;
+  let following = true; // New state
+
+  // Stop following if user drags the map
+  map.on('dragstart', () => { following = false; });
 
   function startGPS() {
-    if (!("geolocation" in navigator)) {
-      showPill("GPS not supported", 3000);
-      return;
-    }
-
-    // Clear any existing watchers to prevent ghost updates
-    if (gpsWatcher !== null) {
-      navigator.geolocation.clearWatch(gpsWatcher);
-    }
-
+    if (gpsWatcher !== null) return;
     gpsWatcher = navigator.geolocation.watchPosition(
       pos => {
         const coord = [pos.coords.latitude, pos.coords.longitude];
         
-        // If we are using a saved route, don't auto-pan
+        // If we are currently in "saved start" mode, we don't update 'start'
+        // unless explicitly told to switch via switchToGPS()
         if (!savedStartCoord) {
           start = coord;
-          if (!userLocationMarker) {
-            userLocationMarker = L.marker(start, { icon: makePin("●", "#ff9500", "#fff") })
-              .addTo(map).bindPopup("<b>You are here</b>");
-            map.setView(start, 14);
-          } else {
-            userLocationMarker.setLatLng(start);
-          }
+        }
+
+        // Update UI
+        if (!userLocationMarker) {
+          userLocationMarker = L.marker(coord, { icon: makePin("●", "#ff9500", "#fff") })
+            .addTo(map).bindPopup("<b>You are here</b>");
+        } else {
+          userLocationMarker.setLatLng(coord);
+        }
+
+        // Auto-pan only if we haven't manually moved the map
+        if (following && !savedStartCoord) {
+          map.setView(coord, 16);
         }
       },
-      err => {
-        console.warn("GPS Error:", err);
-        showPill("Enable location access to use GPS", 4000);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      (err) => console.warn("GPS error:", err),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   }
 
-  // Improved Switch to GPS function
+  // Add this button somewhere or call it when needed to resume following
+  function resumeFollowing() {
+    following = true;
+    if (start) map.setView(start, 16);
+  }
+
   function switchToGPS() {
     savedStartCoord = null;
     document.getElementById("start-banner").classList.remove("show");
     
-    // Clear legacy pin if it exists
-    if (userLocationMarker) {
-      map.removeLayer(userLocationMarker);
-      userLocationMarker = null;
+    // Resume following immediately
+    following = true;
+    
+    // Clear and restart
+    if (gpsWatcher) {
+      navigator.geolocation.clearWatch(gpsWatcher);
+      gpsWatcher = null;
     }
     
-    start = null;
-    startGPS(); // Restart the watcher
-    showPill("Switched to live GPS", 2000);
+    // Clear the 'Saved' marker if it exists
+    map.eachLayer((layer) => {
+        if (layer instanceof L.Marker && layer !== userLocationMarker) {
+           // Optionally keep other markers, just remove the specific 'S' one
+        }
+    });
+
+    startGPS();
+    showPill("Live GPS active", 2000);
     
-    // Refresh map size in case layout shifted
+    // Force redraw
     setTimeout(() => map.invalidateSize(), 100);
-    
-    if (stops.length > 0) optimizeRoute();
   }
 
   // Initial Call
