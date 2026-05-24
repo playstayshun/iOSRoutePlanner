@@ -1465,13 +1465,15 @@ document.getElementById("stops-scroll").addEventListener("touchmove", e => {
 
 /* ── ORIENTATION CHANGE ───────────────────────────────────────────────── */
 window.addEventListener("orientationchange", () => {
+  navStartTs = Date.now();
   setTimeout(() => {
     map.invalidateSize();
-    // If navigating, re-center after rotation
-    if (isNav && navFollowing && start) {
+    if (isNav && start) {
+      navFollowing = true;
+      document.getElementById("btn-recenter").classList.remove("show");
       map.setView(start, map.getZoom(), { animate: false });
     }
-  }, 350);
+  }, 400);
 });
 
 /* ── BOOT ─────────────────────────────────────────────────────────────── */
@@ -1492,9 +1494,6 @@ if (synth) {
 requestAnimationFrame(() => map.invalidateSize());
 window.addEventListener("resize", () => {
   map.invalidateSize();
-  if (isNav && navFollowing && start) {
-    map.setView(start, map.getZoom(), { animate: false });
-  }
 });
 </script>
 </body>
