@@ -631,15 +631,33 @@ const tileDark  = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x
 const tileLight = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",              { maxZoom:20, attribution:"© OpenStreetMap" });
 tileDark.addTo(map);
 
-// ─── DRAG: only kill following when NOT in nav. During nav show re-center ──
+// ─── DRAG: Prevent accidental taps and fat-fingers from breaking GPS lock ──
+let mapIsDragging = false;
+let dragStartPoint = null;
+
 map.on("dragstart", () => {
-  if (isNav) {
-    // User manually panned — release GPS lock, show re-center button
-   if (Date.now() - navStartTs < 800) return;
-    navFollowing = false;
-    document.getElementById("btn-recenter").classList.add("show");
-  } else {
-    mapFollowing = false;
+  mapIsDragging = true;
+  // Record the exact pixel location where the touch started
+  dragStartPoint = map.project(map.getCenter(), map.getZoom());
+});
+
+map.on("dragend", () => {
+  mapIsDragging = false;
+  if (!dragStartPoint) return;
+
+  // Calculate how many pixels the user actually moved the map
+  const currentPoint = map.project(map.getCenter(), map.getZoom());
+  const pixelDistance = dragStartPoint.distanceTo(currentPoint);
+
+  // ONLY break the lock if they deliberately dragged it (more than 20 pixels)
+  if (pixelDistance > 20) {
+    if (isNav) {
+      if (Date.now() - navStartTs < 800) return;
+      navFollowing = false;
+      document.getElementById("btn-recenter").classList.add("show");
+    } else {
+      mapFollowing = false;
+    }
   }
 });
 
@@ -1015,9 +1033,7 @@ function onNavGPSUpdate() {
   updateNavHUD();
 
   // ── AUTO-PAN: always keep user centred while navFollowing is true ────
-  // Uses panTo (no zoom change) for smooth continuous tracking, setView
-  // only when the zoom needs boosting.
-  if (navFollowing) {
+  if (navFollowing && !mapIsDragging) {
     const z = map.getZoom();
     const NAV_ZOOM = 17;
     if (z < NAV_ZOOM) {
