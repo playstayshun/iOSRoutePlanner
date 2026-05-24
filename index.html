@@ -1013,13 +1013,17 @@ function onNavGPSUpdate() {
   // Uses panTo (no zoom change) for smooth continuous tracking, setView
   // only when the zoom needs boosting.
   if (navFollowing) {
-    map.stop(); // cancel any in-progress pan/zoom animation
-    map.setView(start, Math.max(map.getZoom(), 17), {
-      animate: true,
-      duration: 0.8,
-      noMoveStart: true
-    });
+    const z = map.getZoom();
+    const NAV_ZOOM = 17;
+    if (z < NAV_ZOOM) {
+      // Need to change zoom — use setView with animation
+      map.setView(start, NAV_ZOOM, { animate: true, duration: 0.5 });
+    } else {
+      // Just pan — much smoother for continuous GPS updates
+      map.panTo(start, { animate: true, duration: 0.4, easeLinearity: 0.5, noMoveStart: true });
+    }
   }
+}
 
 function advanceStepByProximity() {
   if (navStepIdx >= navSteps.length) return;
