@@ -1480,31 +1480,46 @@ document.getElementById("stops-scroll").addEventListener("touchmove", e => {
   e.stopPropagation();
 }, { passive:true });
 
-/* ── ORIENTATION CHANGE ───────────────────────────────────────────────── */
+/* ── ORIENTATION & RESIZE (The Fix) ───────────────────────────────────── */
+function handleScreenChange() {
+  // Give the mobile browser's UI (safari address bar, notch) time to settle
+  setTimeout(() => {
+    // 1. Tell Leaflet the container size changed, and ALLOW it to pan
+    map.invalidateSize({ pan: true });
+    
+    // 2. Forcefully grab the map by the collar and pull it back to the user
+    const targetLoc = isNav ? start : gpsCurrent;
+    const shouldTrack = isNav ? navFollowing : mapFollowing;
+    
+    if (targetLoc && shouldTrack) {
+      map.setView(targetLoc, map.getZoom(), { animate: false });
+    }
+  }, 300); // 300ms accounts for iOS/Android rotation animations
+}
+
 window.addEventListener("orientationchange", () => {
-  navStartTs = Date.now();
-  setTimeout(() => map.invalidateSize({ pan: false }), 400);
+  navStartTs = Date.now(); // Prevents accidental drag breaks during rotation
+  handleScreenChange();
 });
+
+window.addEventListener("resize", handleScreenChange);
 
 /* ── BOOT ─────────────────────────────────────────────────────────────── */
 refreshBadge();
 startGPS();
 
-// Preload voice list so it's ready before navigation starts
+// Preload voice list
 if (synth) {
   setTimeout(() => {
     const voices = synth.getVoices();
-    // If empty, wait for onvoiceschanged (Chrome async load)
     if (!voices.length) {
       synth.onvoiceschanged = () => synth.getVoices();
     }
   }, 500);
 }
 
+// Initial size check
 requestAnimationFrame(() => map.invalidateSize());
-window.addEventListener("resize", () => {
-  map.invalidateSize({ pan: false });
-});
 </script>
 </body>
 </html>
