@@ -66,7 +66,6 @@ body {
 .leaflet-bottom.leaflet-right {
   bottom: calc(var(--panel-visible, 240px) + 16px + var(--safe-b)) !important;
   right: calc(10px + var(--safe-r)) !important;
-  transition: bottom 0.3s ease;
 }
 .leaflet-control-zoom a {
   background: rgba(12,7,8,.9) !important; color: var(--text) !important;
@@ -93,9 +92,10 @@ body {
   100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* ── RE-CENTER BUTTON ────────── */
+/* ── RE-CENTER BUTTON (shown during nav when user panned away) ────────── */
 #btn-recenter {
   position: fixed;
+  /* portrait: bottom-right above zoom controls; landscape: right side */
   bottom: calc(var(--panel-visible, 240px) + 110px + var(--safe-b));
   right: calc(12px + var(--safe-r));
   z-index: 300;
@@ -109,7 +109,7 @@ body {
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   opacity: 0; pointer-events: none;
   transform: scale(.8);
-  transition: opacity .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1), bottom 0.3s ease;
+  transition: opacity .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1);
   will-change: opacity, transform;
 }
 #btn-recenter.show {
@@ -138,7 +138,7 @@ body.navigating #btn-recenter { bottom: calc(16px + var(--safe-b)); }
 #status-pill.blue  { background: #2a6abf;        border-color: rgba(59,158,255,.4); box-shadow: 0 4px 24px rgba(59,158,255,.3); }
 #status-pill.show  { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ── NAV OVERLAY ──────────────────────────────────────────────────────── */
+/* ── NAV OVERLAY — full top HUD during navigation ─────────────────────── */
 #nav-overlay {
   position: fixed; top: 0; left: 0; right: 0;
   z-index: 300;
@@ -153,6 +153,7 @@ body.navigating #btn-recenter { bottom: calc(16px + var(--safe-b)); }
 }
 #nav-overlay.active { transform: translateY(0); }
 
+/* Maneuver row */
 .nav-maneuver-row {
   display: flex; align-items: center; gap: 12px;
   padding-bottom: 10px;
@@ -167,8 +168,7 @@ body.navigating #btn-recenter { bottom: calc(16px + var(--safe-b)); }
 }
 .nav-arrow-box.arrival { background: rgba(0,201,110,.10); border-color: rgba(0,201,110,.3); }
 .nav-arrow-box.u-turn  { background: rgba(245,166,34,.08); border-color: rgba(245,166,34,.25); }
-.nav-arrow-box svg { transition: transform .25s cubic-bezier(.34,1.56,.64,1); color: var(--blue); }
-.nav-arrow-box.arrival svg { color: var(--green); }
+.nav-arrow-box svg { transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
 
 .nav-inst-col { flex: 1; min-width: 0; }
 .nav-inst {
@@ -182,6 +182,7 @@ body.navigating #btn-recenter { bottom: calc(16px + var(--safe-b)); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .02em;
 }
 
+/* Bottom meta row */
 .nav-meta-row { display: flex; align-items: center; gap: 8px; }
 .nav-pill {
   display: flex; align-items: center; gap: 5px;
@@ -204,6 +205,16 @@ body.navigating #btn-recenter { bottom: calc(16px + var(--safe-b)); }
 }
 .nav-ctrl-btn:active      { transform: scale(.9); }
 .nav-ctrl-btn.end:active  { background: rgba(227,41,58,.15); border-color: var(--red); color: var(--red); }
+.nav-ctrl-btn.muted       { color: var(--text-3); border-color: rgba(255,255,255,.04); }
+
+#nav-next-row {
+  display: none; font-size: 11px; color: var(--text-3);
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,.04);
+  align-items: center; gap: 7px; letter-spacing: .02em;
+}
+#nav-next-row.show { display: flex; }
+#nav-next-icon { flex-shrink: 0; opacity: .55; }
 
 /* Progress bar */
 #nav-progress-bar {
@@ -217,7 +228,26 @@ body.navigating #btn-recenter { bottom: calc(16px + var(--safe-b)); }
   box-shadow: 0 0 8px rgba(59,158,255,.7);
 }
 
-body.navigating #panel { transform: translateY(100%); pointer-events: none; }
+body.navigating #panel { display: none !important; }
+body.navigating .leaflet-control-zoom { display: none; }
+
+/* ── LANDSCAPE NAV OVERLAY (compact) ─────────────────────────────────── */
+@media (orientation: landscape) and (max-height: 500px) {
+  #nav-overlay {
+    padding-top: calc(var(--safe-t) + 6px);
+    padding-bottom: 8px;
+  }
+  .nav-maneuver-row {
+    padding-bottom: 6px; margin-bottom: 6px;
+  }
+  .nav-arrow-box { width: 40px; height: 40px; border-radius: 10px; }
+  .nav-inst { font-size: 18px; }
+  #nav-next-row { margin-top: 5px; padding-top: 5px; }
+  body.navigating #btn-recenter {
+    bottom: calc(10px + var(--safe-b));
+    right: calc(10px + var(--safe-r));
+  }
+}
 
 /* ── PANEL ────────────────────────────────────────────────────────────── */
 #panel {
@@ -230,53 +260,155 @@ body.navigating #panel { transform: translateY(100%); pointer-events: none; }
   max-height: 68vh; padding-bottom: var(--safe-b);
   will-change: transform; transition: transform .34s cubic-bezier(.32,.72,0,1);
 }
+#panel::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .025; pointer-events: none; z-index: 0; border-radius: inherit;
+}
 #panel > * { position: relative; z-index: 1; }
 
+/* Landscape: panel shrinks, sits at side */
+@media (orientation: landscape) and (max-height: 500px) {
+  #panel { max-height: 55vh; border-radius: 16px 16px 0 0; }
+}
+
+/* ── DRAG HANDLE ─────────────────────────────────────────────────────── */
 #drag-zone { flex-shrink: 0; height: 28px; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; touch-action: none; }
 #drag-zone:active { cursor: grabbing; }
 #drag-pip { width: 38px; height: 4px; background: rgba(255,255,255,.15); border-radius: 2px; transition: background .2s, width .2s; }
 #drag-zone:active #drag-pip { background: rgba(255,255,255,.3); width: 48px; }
 
+/* ── HEADER ───────────────────────────────────────────────────────────── */
 #header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 12px; }
 #logo { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--text); line-height: 1; user-select: none; }
 #logo em  { color: var(--red); font-style: normal; }
 #logo sub { display: block; font-size: 9px; font-weight: 500; letter-spacing: .12em; color: var(--text-3); margin-top: 1px; text-transform: uppercase; }
-
-.hbtn { width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); transition: background .15s, color .15s, border-color .15s; -webkit-tap-highlight-color: transparent; }
+.hbtn { width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); transition: background .15s, color .15s, border-color .15s; -webkit-tap-highlight-color: transparent; position: relative; }
 .hbtn:active { background: rgba(255,255,255,.09); color: var(--text); }
+.hbtn.active { color: var(--red); border-color: var(--border-r); background: var(--red-soft); }
+.hbadge { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 8px; background: var(--red); color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transform: scale(0); transition: opacity .2s, transform .25s cubic-bezier(.34,1.56,.64,1); }
+.hbadge.on { opacity: 1; transform: scale(1); }
 
+/* ── START BANNER ─────────────────────────────────────────────────────── */
+#start-banner { flex-shrink: 0; display: none; align-items: center; gap: 10px; margin: 0 14px 10px; padding: 10px 12px; background: rgba(245,166,34,.07); border: 1px solid rgba(245,166,34,.2); border-radius: 10px; }
+#start-banner.on { display: flex; }
+#start-banner svg { color: var(--amber); flex-shrink: 0; }
+#start-banner-txt { flex: 1; min-width: 0; font-size: 11px; color: rgba(245,166,34,.8); line-height: 1.45; }
+#start-banner-txt b { display: block; color: var(--amber); font-size: 11px; margin-bottom: 1px; }
+#btn-gps { flex-shrink: 0; padding: 5px 10px; background: var(--ink-3); border: 1px solid var(--border); border-radius: 7px; color: var(--text-2); font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s; }
+#btn-gps:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+
+/* ── SEARCH ROW ───────────────────────────────────────────────────────── */
 #search-row { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
-#address { flex: 1; height: 50px; background: rgba(255,255,255,.055); border: 1px solid var(--border); border-radius: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; padding: 0 14px; outline: none; transition: border-color .15s, background .15s; }
+#address { flex: 1; height: 50px; background: rgba(255,255,255,.055); border: 1px solid var(--border); border-radius: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; padding: 0 14px; outline: none; transition: border-color .15s, background .15s; -webkit-appearance: none; appearance: none; }
+#address::placeholder { color: var(--text-3); }
 #address:focus { border-color: rgba(227,41,58,.4); background: rgba(255,255,255,.07); }
-#btn-pin { flex-shrink: 0; width: 50px; height: 50px; border-radius: 13px; background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--text-2); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; }
-#btn-add { flex-shrink: 0; width: 50px; height: 50px; border-radius: 13px; background: var(--red); border: none; color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: transform .12s; }
+#btn-pin { flex-shrink: 0; width: 50px; height: 50px; border-radius: 13px; background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--text-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; -webkit-tap-highlight-color: transparent; font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+#btn-pin:active, #btn-pin.active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+#btn-add { flex-shrink: 0; width: 50px; height: 50px; border-radius: 13px; background: var(--red); border: none; color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: background .15s, transform .12s cubic-bezier(.34,1.56,.64,1); -webkit-tap-highlight-color: transparent; }
 #btn-add:active { background: var(--red-2); transform: scale(.9); }
+#btn-add.loading { background: var(--ink-3); color: var(--text-2); transform: none; }
 
+/* ── ACTION STRIP ─────────────────────────────────────────────────────── */
 #action-strip { flex-shrink: 0; display: flex; gap: 8px; padding: 0 14px 8px; }
-#btn-optimize { flex: 2; height: 46px; background: rgba(0,201,110,.09); border: 1px solid rgba(0,201,110,.22); border-radius: 12px; color: var(--green); font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: transform .12s; }
-#btn-optimize:active { transform: scale(.97); }
-.sec-btn { flex: 1; height: 46px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 12px; color: var(--text-2); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#btn-optimize { flex: 2; height: 46px; background: rgba(0,201,110,.09); border: 1px solid rgba(0,201,110,.22); border-radius: 12px; color: var(--green); font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background .15s, border-color .15s, transform .12s; -webkit-tap-highlight-color: transparent; }
+#btn-optimize:active { background: rgba(0,201,110,.17); border-color: rgba(0,201,110,.45); transform: scale(.97); }
+.sec-btn { flex: 1; height: 46px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 12px; color: var(--text-2); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background .15s, color .15s, border-color .15s, transform .12s; -webkit-tap-highlight-color: transparent; -webkit-appearance: none; appearance: none; }
+#btn-save.ready { color: var(--text); border-color: rgba(255,255,255,.12); }
+#btn-save:active  { background: rgba(245,166,34,.1);  border-color: rgba(245,166,34,.35); color: var(--amber); transform: scale(.96); }
+#btn-clear:active { background: rgba(227,41,58,.08);  border-color: rgba(227,41,58,.3);   color: var(--red);   transform: scale(.96); }
 
+/* ── NAV ROW ──────────────────────────────────────────────────────────── */
 #nav-row { flex-shrink: 0; padding: 0 14px 10px; display: none; }
-#btn-nav { width: 100%; height: 50px; background: var(--green); border: none; border-radius: 13px; color: var(--ink); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 800; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; }
+#btn-nav { width: 100%; height: 50px; background: var(--green); border: none; border-radius: 13px; color: var(--ink); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background .15s, transform .12s cubic-bezier(.34,1.56,.64,1); -webkit-tap-highlight-color: transparent; box-shadow: 0 4px 20px rgba(0,201,110,.2); }
+#btn-nav:active { background: var(--green-2); transform: scale(.97); }
 
+/* ── STOPS LIST ───────────────────────────────────────────────────────── */
 #stops-outer { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-#stops-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 2px 14px 10px; }
-.stop-row { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
-.stop-badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 800; color: #fff; background: linear-gradient(145deg, #e83848, #a81e2c); }
+#stops-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 2px 14px 10px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+#stops-scroll::-webkit-scrollbar { display: none; }
+#stops-outer::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 32px; background: linear-gradient(transparent, rgba(9,6,7,.93)); pointer-events: none; opacity: 0; transition: opacity .2s; }
+#stops-outer.overflow::after { opacity: 1; }
+#stops-section-label { display: none; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); padding: 4px 0 8px; align-items: center; gap: 8px; }
+#stops-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.stop-row { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04); animation: rise .2s ease; }
+.stop-row:last-child { border-bottom: none; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.stop-badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 800; color: #fff; background: linear-gradient(145deg, #e83848, #a81e2c); box-shadow: 0 2px 10px rgba(227,41,58,.35); transition: background .2s, box-shadow .2s; }
+.stop-badge.dim  { background: var(--ink-3); border: 1px solid var(--border); color: var(--text-3); font-size: 20px; box-shadow: none; }
+.stop-badge.done { background: linear-gradient(145deg, #00c96e, #008c4c); box-shadow: 0 2px 10px rgba(0,201,110,.3); }
 .stop-meta { flex: 1; min-width: 0; }
-.stop-name { display: block; font-size: 13px; font-weight: 500; color: var(--text); }
-.stop-del { width: 36px; height: 36px; border-radius: 9px; background: none; border: 1px solid transparent; color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-#empty { text-align: center; padding: 20px 0 12px; color: var(--text-3); font-size: 13px; }
+.stop-name { display: block; font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
+.stop-name.locating { color: var(--text-3); font-style: italic; }
+.stop-coords { display: block; font-size: 10px; color: var(--text-3); margin-top: 1px; letter-spacing: .02em; }
+.stop-del { width: 36px; height: 36px; border-radius: 9px; background: none; border: 1px solid transparent; color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s; }
+.stop-del:active { background: rgba(227,41,58,.1); border-color: rgba(227,41,58,.3); color: var(--red); }
+#empty { text-align: center; padding: 20px 0 12px; color: var(--text-3); font-size: 13px; line-height: 1.8; }
+#empty strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px; }
 
-/* ── BACKDROP & SHEETS ────────────────────────────────────────────────── */
-.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 400; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(3px); }
+/* ── PINS ─────────────────────────────────────────────────────────────── */
+.rr-pin { position: relative; width: 28px; height: 36px; }
+.rr-pin-body { position: absolute; inset: 0; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 4px 14px rgba(0,0,0,.6); }
+.rr-pin-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-bottom: 3px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; color: #fff; z-index: 1; }
+.step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid rgba(59,158,255,.5); box-shadow: 0 0 6px rgba(59,158,255,.4); }
+
+/* ── BACKDROP ─────────────────────────────────────────────────────────── */
+.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 400; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
 .backdrop.on { opacity: 1; pointer-events: auto; }
 
-.sheet { position: fixed; bottom: 0; left: 0; right: 0; z-index: 500; background: var(--ink-1); border-top: 1px solid var(--border-r); border-radius: 22px 22px 0 0; padding-bottom: var(--safe-b); transform: translateY(100%); transition: transform .32s cubic-bezier(.32,.72,0,1); }
+/* ── SHEETS ───────────────────────────────────────────────────────────── */
+.sheet { position: fixed; bottom: 0; left: 0; right: 0; z-index: 500; background: var(--ink-1); border-top: 1px solid var(--border-r); border-radius: 22px 22px 0 0; padding-bottom: var(--safe-b); transform: translateY(100%); transition: transform .32s cubic-bezier(.32,.72,0,1); will-change: transform; box-shadow: 0 -12px 60px rgba(0,0,0,.7), 0 -1px 0 rgba(255,255,255,.06) inset; }
 .sheet.on { transform: translateY(0); }
 .sheet-pip { width: 36px; height: 4px; background: var(--ink-4); border-radius: 2px; margin: 14px auto 18px; }
-.sheet-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--text); padding: 0 20px 18px; }
+.sheet-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text); margin-bottom: 4px; padding: 0 20px; }
+.sheet-sub { font-size: 12px; color: var(--text-2); margin-bottom: 18px; padding: 0 20px; }
+.sheet-input { display: block; width: calc(100% - 40px); margin: 0 20px 14px; background: rgba(255,255,255,.055); border: 1px solid var(--border); border-radius: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; padding: 0 14px; height: 50px; outline: none; transition: border-color .15s, background .15s; -webkit-appearance: none; appearance: none; }
+.sheet-input::placeholder { color: var(--text-3); }
+.sheet-input:focus { border-color: rgba(227,41,58,.4); background: rgba(255,255,255,.07); }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; margin: 0 20px 18px; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 13px; padding: 12px 14px; gap: 12px; }
+.toggle-lbl { flex: 1; }
+.toggle-lbl span { display: block; font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3; }
+.toggle-lbl small { display: block; font-size: 11px; color: var(--text-2); margin-top: 2px; line-height: 1.4; }
+.ios-sw { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+.ios-sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+.ios-sw-track { position: absolute; inset: 0; border-radius: 13px; background: var(--ink-3); border: 1px solid var(--border); transition: background .2s, border-color .2s; cursor: pointer; }
+.ios-sw-track::after { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: var(--text-2); top: 2px; left: 2px; transition: transform .2s cubic-bezier(.34,1.56,.64,1), background .2s; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.ios-sw input:checked + .ios-sw-track { background: var(--red); border-color: var(--red-2); }
+.ios-sw input:checked + .ios-sw-track::after { transform: translateX(18px); background: #fff; }
+.sheet-btns { display: flex; gap: 10px; padding: 0 20px; }
+.sheet-btn-cancel { flex: 1; height: 50px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 13px; color: var(--text-2); font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s; }
+.sheet-btn-cancel:active { background: rgba(255,255,255,.08); transform: scale(.97); }
+.sheet-btn-confirm { flex: 2; height: 50px; background: var(--red); border: none; border-radius: 13px; color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, transform .12s cubic-bezier(.34,1.56,.64,1); }
+.sheet-btn-confirm:active { background: var(--red-2); transform: scale(.97); }
+
+/* ── ROUTES DRAWER ────────────────────────────────────────────────────── */
+#routes-drawer { max-height: 82vh; display: flex; flex-direction: column; }
+.drawer-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0 20px 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.drawer-hdr-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.drawer-hdr-title em { color: var(--red); font-style: normal; }
+.drawer-x { width: 36px; height: 36px; border-radius: 9px; background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s; }
+.drawer-x:active { background: rgba(255,255,255,.09); color: var(--red); }
+#drawer-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px 20px 8px; }
+#drawer-list::-webkit-scrollbar { display: none; }
+.rcard { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,.04); flex-wrap: wrap; animation: rise .18s ease; }
+.rcard:last-child { border-bottom: none; }
+.rcard-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--red-soft); border: 1px solid var(--border-r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--red); }
+.rcard-info { flex: 1; min-width: 0; }
+.rcard-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.rcard-meta { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.fixed-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(245,166,34,.1); border: 1px solid rgba(245,166,34,.22); border-radius: 4px; padding: 1px 5px; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--amber); }
+.rcard-acts { display: flex; gap: 6px; flex-shrink: 0; }
+.rcard-btn { width: 40px; height: 40px; border-radius: 9px; border: 1px solid var(--border); background: rgba(255,255,255,.03); color: var(--text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s, transform .1s; }
+.rcard-btn:active { transform: scale(.9); }
+.rcard-btn.load:active { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+.rcard-btn.del:active  { background: rgba(255,100,80,.1); border-color: rgba(255,100,80,.3); color: #ff6450; }
+.rcard-confirm { display: none; width: 100%; gap: 8px; padding: 8px 0 2px; align-items: center; }
+.rcard.confirming .rcard-confirm { display: flex; }
+.rcard-confirm span { flex: 1; font-size: 12px; color: var(--text-2); }
+.rcard-yes { padding: 6px 14px; background: rgba(255,100,80,.1); border: 1px solid rgba(255,100,80,.3); border-radius: 8px; color: #ff6450; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rcard-no  { padding: 6px 14px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text-2); font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.drawer-empty { text-align: center; padding: 36px 0 16px; color: var(--text-2); font-size: 13px; line-height: 1.8; }
+.drawer-empty strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -284,11 +416,12 @@ body.navigating #panel { transform: translateY(100%); pointer-events: none; }
 <div id="map"></div>
 <div id="nav-progress-bar"><div id="nav-progress-fill"></div></div>
 
-<!-- Re-center GPS button -->
-<button id="btn-recenter" onclick="reCenterMap()" aria-label="Re-center map on my location">
+<!-- Re-center GPS button (appears during nav when user pans away) -->
+<button id="btn-recenter" onclick="reCenter()" aria-label="Re-center map on my location">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+    <circle cx="12" cy="12" r="8" stroke-opacity=".3"/>
   </svg>
 </button>
 
@@ -296,300 +429,1066 @@ body.navigating #panel { transform: translateY(100%); pointer-events: none; }
 <div id="nav-overlay">
   <div class="nav-maneuver-row">
     <div class="nav-arrow-box" id="nav-arrow-box">
-      <!-- Up Arrow SVG -->
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 19V5M5 12l7-7 7 7"/>
+      <svg id="nav-arrow-svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b9eff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
       </svg>
     </div>
     <div class="nav-inst-col">
-      <div class="nav-inst" id="nav-inst">Proceed to route</div>
-      <div class="nav-street" id="nav-street">Starting navigation...</div>
+      <div class="nav-inst" id="nav-inst">Calculating…</div>
+      <div class="nav-street" id="nav-street"></div>
     </div>
-  </div>
-  <div class="nav-meta-row">
-    <div class="nav-pill active" id="nav-step-dist">Calculating...</div>
     <div class="nav-controls">
-      <button class="nav-ctrl-btn end" id="btn-end-nav" onclick="stopNavigation()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      <button class="nav-ctrl-btn" id="btn-mute" onclick="toggleMute()" title="Mute voice">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        </svg>
+      </button>
+      <button class="nav-ctrl-btn end" onclick="stopNav()" title="End navigation">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
     </div>
   </div>
+  <div class="nav-meta-row">
+    <div class="nav-pill" id="nav-stop-pill">Stop — of —</div>
+    <div class="nav-pill active" id="nav-step-dist">— ft</div>
+    <div class="nav-pill" id="nav-remain-pill">— left</div>
+  </div>
+  <div id="nav-next-row">
+    <span id="nav-next-icon">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+      </svg>
+    </span>
+    <span>Then: </span>
+    <span id="nav-next-text" style="color:var(--text-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+  </div>
 </div>
 
-<!-- Status Pill -->
-<div id="status-pill">Status</div>
+<div id="status-pill"></div>
 
-<!-- Main Panel -->
+<!-- Main panel -->
 <div id="panel">
   <div id="drag-zone"><div id="drag-pip"></div></div>
-  
   <div id="header">
-    <div id="logo">SRP<em>.</em><sub>Routing Engine</sub></div>
-    <button class="hbtn" onclick="toggleRoutesDrawer()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-    </button>
+    <div id="logo">Simple <em>Route</em> Planner<sub>SRP</sub></div>
+    <div style="display:flex;gap:7px">
+      <button id="btn-routes" class="hbtn" onclick="openRoutes()" title="Saved routes">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span id="rbadge" class="hbadge">0</span>
+      </button>
+      <button id="btn-night" class="hbtn active" onclick="toggleNight()" title="Night mode">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
   </div>
-
+  <div id="start-banner">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div id="start-banner-txt"><b>Fixed Start Location</b>Loaded from saved route.</div>
+    <button id="btn-gps" onclick="switchToGPS()">Use GPS</button>
+  </div>
   <div id="search-row">
-    <input type="text" id="address" placeholder="Enter an address or coordinate..." />
-    <button id="btn-pin" onclick="togglePinMode()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      Pin
+    <input id="address" type="text" inputmode="search" placeholder="Search address or place…"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           onkeydown="if(event.key==='Enter'){this.blur();doAddStop()}"/>
+    <button id="btn-pin" onclick="togglePin()" title="Tap map to place stop">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+      Map
     </button>
-    <button id="btn-add" onclick="addStop()">Add</button>
+    <button id="btn-add" onclick="doAddStop()">Add</button>
   </div>
-
   <div id="action-strip">
-    <button id="btn-optimize" onclick="optimizeRoute()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    <button id="btn-optimize" onclick="doOptimize()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Optimize
     </button>
-    <button class="sec-btn" id="btn-save" onclick="openSaveSheet()">Save</button>
-    <button class="sec-btn" id="btn-clear" onclick="clearStops()">Clear</button>
-  </div>
-
-  <div id="nav-row">
-    <button id="btn-nav" onclick="startNavigation()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      Start Route
+    <button id="btn-save" class="sec-btn" onclick="openSave()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save
+    </button>
+    <button id="btn-clear" class="sec-btn" onclick="doClear()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Clear
     </button>
   </div>
-
+  <div id="nav-row">
+    <button id="btn-nav" onclick="startNav()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      Start Navigation
+    </button>
+  </div>
   <div id="stops-outer">
     <div id="stops-scroll">
-      <div id="empty">
-        <strong>No Stops Added</strong>
-        Search above or pin locations on the map.
-      </div>
-      <!-- Stops will be injected here -->
+      <div id="stops-section-label">Stops</div>
+      <div id="stops-list"></div>
+      <div id="empty"><strong>No stops yet</strong>Search an address or tap Map</div>
     </div>
   </div>
 </div>
 
-<!-- Backdrop -->
-<div class="backdrop" id="backdrop" onclick="closeAllSheets()"></div>
+<div id="backdrop" class="backdrop" onclick="closeAll()"></div>
 
-<!-- Save Sheet -->
-<div class="sheet" id="save-sheet">
+<!-- Save modal -->
+<div id="save-modal" class="sheet">
   <div class="sheet-pip"></div>
   <div class="sheet-title">Save Route</div>
-  <div style="padding: 0 20px 20px; color: var(--text-2);">Route saving functionality goes here.</div>
+  <div class="sheet-sub" id="save-sub">Name this route</div>
+  <input id="route-name" class="sheet-input" type="text" inputmode="text"
+         placeholder="e.g. Morning deliveries…"
+         autocomplete="off" autocorrect="off" spellcheck="false" maxlength="48"
+         onkeydown="if(event.key==='Enter'){this.blur();confirmSave()}"/>
+  <div class="toggle-row">
+    <div class="toggle-lbl">
+      <span>Save start location</span>
+      <small>Resume from this exact point later</small>
+    </div>
+    <label class="ios-sw">
+      <input type="checkbox" id="save-start-chk"/>
+      <span class="ios-sw-track"></span>
+    </label>
+  </div>
+  <div class="sheet-btns">
+    <button class="sheet-btn-cancel" onclick="closeSave()">Cancel</button>
+    <button class="sheet-btn-confirm" onclick="confirmSave()">Save Route</button>
+  </div>
 </div>
 
-<!-- Routes Drawer -->
-<div class="sheet" id="routes-drawer">
+<!-- Routes drawer -->
+<div id="routes-drawer" class="sheet">
   <div class="sheet-pip"></div>
-  <div class="sheet-title">Saved Routes</div>
-  <div style="padding: 0 20px 20px; color: var(--text-2);">Saved routes list goes here.</div>
+  <div class="drawer-hdr">
+    <div class="drawer-hdr-title">Saved <em>Routes</em></div>
+    <button class="drawer-x" onclick="closeRoutes()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div id="drawer-list"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // --- STATE ---
-  let map, routeLine;
-  let stops = [];
-  let markers = [];
-  let isPinMode = false;
+/* ═══════════════════════════════════════════════════════════════════════
+   SIMPLE ROUTE PLANNER  —  Fixed GPS Auto-Pan + Voice Navigation
+   ═══════════════════════════════════════════════════════════════════════ */
 
-  // --- INIT MAP ---
-  document.addEventListener('DOMContentLoaded', () => {
-    // Default to a central US view
-    map = L.map('map', { zoomControl: false }).setView([39.8283, -98.5795], 4);
-    
-    // Add free OpenStreetMap tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
-    }).addTo(map);
+const esc = s => String(s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
-    // Add zoom controls to bottom right
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+/* ── STATE ────────────────────────────────────────────────────────────── */
+let gpsCurrent   = null;
+let start        = null;
+let savedStart   = null;
+let savedStartMk = null;
+let stops        = [];
+let markers      = [];
+let glowLine     = null;
+let routeLine    = null;
+let stepMarkers  = [];
+let darkMode     = true;
+let pinMode      = false;
+let optGen       = 0;
 
-    // Click handler for Pin Mode
-    map.on('click', function(e) {
-      if (isPinMode) {
-        document.getElementById('address').value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-        togglePinMode(); // Turn off after click
+// Navigation state
+let isNav          = false;
+let navStops       = [];
+let navStopIdx     = 0;
+let navSteps       = [];
+let navStepIdx     = 0;
+let navStartTs     = 0;
+let navMuted       = false;
+let gpsWatcher     = null;
+let gpsMarker      = null;
+
+// ─── CRITICAL: separate nav-following from browse-following ───────────
+// navFollowing = true means map stays locked to GPS during navigation.
+// It only becomes false when the user MANUALLY drags the map mid-nav.
+// Tapping the re-center button restores it.
+let navFollowing = true;   // controls GPS lock during navigation
+let mapFollowing = true;   // controls pan-to-GPS when NOT navigating
+
+// Voice cue tracking
+let lastVoicedStep = -1;
+let voiced400      = false;
+let voiced100      = false;
+
+// Smooth pan animation tracking
+let panRAF = null;
+
+/* ── MAP ──────────────────────────────────────────────────────────────── */
+const map = L.map("map", {
+  tap: false,
+  zoomControl: true,
+  attributionControl: true,
+  fadeAnimation: true,
+  // Disable the default animation on setView so we control it ourselves
+  zoomAnimation: true
+}).setView([37.7749, -122.4194], 12);
+
+map.zoomControl.setPosition("bottomright");
+
+const tileDark  = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",  { maxZoom:20, attribution:"© OpenStreetMap © CARTO" });
+const tileLight = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",              { maxZoom:20, attribution:"© OpenStreetMap" });
+tileDark.addTo(map);
+
+// ─── DRAG: only kill following when NOT in nav. During nav show re-center ──
+map.on("dragstart", () => {
+  if (isNav) {
+    // User manually panned — release GPS lock, show re-center button
+   if (Date.now() - navStartTs < 800) return;
+    navFollowing = false;
+    document.getElementById("btn-recenter").classList.add("show");
+  } else {
+    mapFollowing = false;
+  }
+});
+
+/* ── RE-CENTER ────────────────────────────────────────────────────────── */
+function reCenter() {
+  navStartTs = Date.now();
+  navFollowing = true;
+  document.getElementById("btn-recenter").classList.remove("show");
+  if (start) {
+    map.setView(start, Math.max(map.getZoom(), 17), { animate: true, duration: 0.5 });
+  }
+}
+
+/* ── ICONS ────────────────────────────────────────────────────────────── */
+function makePin(label, bg) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="rr-pin"><div class="rr-pin-body" style="background:${bg||"#e3293a"}"></div><div class="rr-pin-num">${label}</div></div>`,
+    iconSize: [28,36], iconAnchor: [14,36], popupAnchor: [0,-38]
+  });
+}
+function gpsIcon() {
+  return L.divIcon({
+    className:"",
+    html:`<div class="gps-wrap"><div class="gps-ring"></div><div class="gps-dot"></div></div>`,
+    iconSize:[26,26], iconAnchor:[13,13]
+  });
+}
+function stepDotIcon() {
+  return L.divIcon({ className:"", html:`<div class="step-dot"></div>`, iconSize:[10,10], iconAnchor:[5,5] });
+}
+
+/* ── STATUS PILL ──────────────────────────────────────────────────────── */
+let pillT = null;
+function pill(msg, ms, type) {
+  clearTimeout(pillT);
+  const el = document.getElementById("status-pill");
+  el.textContent = msg;
+  el.className = "show" + (type ? " "+type : "");
+  if (ms) pillT = setTimeout(() => el.classList.remove("show"), ms);
+}
+
+/* ── DRAG PANEL ───────────────────────────────────────────────────────── */
+(function() {
+  const zone  = document.getElementById("drag-zone");
+  const panel = document.getElementById("panel");
+  const SNAPS = [68, 250];
+  let dragging = false, startY = 0, startBottom = 0;
+  function getPanelBottom() { const r = panel.getBoundingClientRect(); return window.innerHeight - r.top; }
+  function snapTo(h) {
+    panel.style.transition = "transform .34s cubic-bezier(.32,.72,0,1)";
+    const full = panel.scrollHeight;
+    panel.style.transform = `translateY(${Math.max(0, full - h)}px)`;
+    setTimeout(() => { panel.style.transition = ""; adjustZoom(h); }, 350);
+  }
+  function adjustZoom(visH) {
+    document.documentElement.style.setProperty("--panel-visible", (visH+16)+"px");
+  }
+  zone.addEventListener("touchstart", e => {
+    dragging=true; startY=e.touches[0].clientY; startBottom=getPanelBottom();
+    panel.style.transition="none";
+  }, { passive:true });
+  document.addEventListener("touchmove", e => {
+    if (!dragging) return;
+    const dy = startY - e.touches[0].clientY;
+    const newH = Math.min(window.innerHeight*.8, Math.max(60, startBottom+dy));
+    panel.style.transform = `translateY(${Math.max(0, panel.scrollHeight - newH)}px)`;
+    adjustZoom(newH);
+  }, { passive:true });
+  document.addEventListener("touchend", () => {
+    if (!dragging) return; dragging=false; panel.style.transition="";
+    const h = getPanelBottom(), mid = (SNAPS[0]+SNAPS[1])/2;
+    snapTo(h < mid ? SNAPS[0] : SNAPS[1]);
+    map.invalidateSize();
+  });
+  let lastTap = 0;
+  zone.addEventListener("touchend", () => { const t=Date.now(); if(t-lastTap<280) snapTo(SNAPS[1]); lastTap=t; });
+  adjustZoom(SNAPS[1]);
+})();
+
+/* ── MAP CLICK / PIN MODE ─────────────────────────────────────────────── */
+function togglePin() {
+  pinMode = !pinMode;
+  document.getElementById("btn-pin").classList.toggle("active", pinMode);
+  document.getElementById("map").classList.toggle("pin-mode", pinMode);
+  if (pinMode) pill("Tap map to drop a stop");
+  else document.getElementById("status-pill").classList.remove("show");
+}
+map.on("click", e => {
+  if (!pinMode) return;
+  if (navigator.vibrate) navigator.vibrate(20);
+  pushStop([e.latlng.lat, e.latlng.lng], null);
+  doOptimize();
+});
+let holdT = null;
+map.on("mousedown", e => {
+  if (pinMode) return;
+  holdT = setTimeout(() => { pushStop([e.latlng.lat, e.latlng.lng], null); doOptimize(); }, 600);
+});
+map.on("mouseup mouseleave", () => clearTimeout(holdT));
+
+/* ── GPS ──────────────────────────────────────────────────────────────── */
+function startGPS() {
+  if (gpsWatcher !== null || !navigator.geolocation) return;
+  gpsWatcher = navigator.geolocation.watchPosition(
+    pos => {
+      const newPos = [pos.coords.latitude, pos.coords.longitude];
+      gpsCurrent = newPos;
+      if (!savedStart) start = gpsCurrent;
+
+      // Update / create the blue GPS dot marker
+      if (!gpsMarker) {
+        gpsMarker = L.marker(gpsCurrent, {
+          icon: gpsIcon(), zIndexOffset: 2000
+        }).addTo(map).bindPopup("<b>You are here</b>");
+      } else {
+        gpsMarker.setLatLng(gpsCurrent);
+        gpsMarker.setIcon(gpsIcon()); // refresh pulse animation
       }
+
+      if (isNav) {
+        // ── NAVIGATION mode: always follow unless user manually panned ──
+        onNavGPSUpdate();
+      } else {
+        // ── BROWSE mode: follow until first manual drag ──────────────────
+        if (mapFollowing && !savedStart) {
+          map.setView(gpsCurrent, Math.max(map.getZoom(), 15), { animate: true, duration: 0.8 });
+        }
+      }
+    },
+    err => console.warn("GPS:", err.message),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function switchToGPS() {
+  savedStart = null;
+  if (savedStartMk) { map.removeLayer(savedStartMk); savedStartMk = null; }
+  document.getElementById("start-banner").classList.remove("on");
+  if (gpsWatcher !== null) { navigator.geolocation.clearWatch(gpsWatcher); gpsWatcher = null; }
+  start = gpsCurrent; mapFollowing = true; startGPS();
+  pill("Live GPS active", 2200, "green");
+  if (stops.length && !isNav) doOptimize();
+}
+
+/* ── HAVERSINE ────────────────────────────────────────────────────────── */
+function hav(a, b) {
+  const R=6371e3, d2r=Math.PI/180;
+  const dLat=(b[0]-a[0])*d2r, dLon=(b[1]-a[1])*d2r;
+  const x=Math.sin(dLat/2)**2+Math.cos(a[0]*d2r)*Math.cos(b[0]*d2r)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function fmtDist(m) {
+  const mi = m/1609.344;
+  return mi < 0.1 ? `${Math.round(m*3.28084)} ft` : `${mi.toFixed(1)} mi`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   VOICE ENGINE
+   ════════════════════════════════════════════════════════════════════════ */
+const synth = window.speechSynthesis || null;
+let speechUnlocked = false;
+let voiceKeepalive = null;
+
+/**
+ * iOS Safari requires speechSynthesis to be triggered from within a
+ * user-gesture handler. We unlock it on the very first touch anywhere,
+ * then resume a keepalive interval to prevent the iOS 15-second pause bug.
+ */
+function unlockSpeech() {
+  if (speechUnlocked || !synth) return;
+  // Speak a zero-length, zero-volume utterance to satisfy the gesture requirement
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0;
+  u.rate   = 10;
+  synth.speak(u);
+  speechUnlocked = true;
+  // iOS bug: speechSynthesis pauses after ~15 s without interaction.
+  // Kick it every 10 s while navigating.
+  voiceKeepalive = setInterval(() => {
+    if (!synth || navMuted) return;
+    if (synth.paused) { synth.resume(); }
+    // If it's stuck not speaking but we're navigating, kick it
+    if (!synth.speaking && isNav) { synth.resume(); }
+  }, 10000);
+}
+
+// Unlock on first touch OR click (covers both iOS and Android)
+document.addEventListener('touchstart', unlockSpeech, { once: true, passive: true });
+document.addEventListener('click',      unlockSpeech, { once: true });
+
+// Also populate the voice list (Chrome loads async, Safari sometimes needs a prod)
+if (synth) {
+  synth.onvoiceschanged = () => synth.getVoices();
+  synth.getVoices();
+}
+
+function speak(text, interrupt) {
+  if (!synth || navMuted) return;
+  if (interrupt) synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate  = 1.05;
+  u.pitch = 1.0;
+  u.volume= 1.0;
+  u.lang  = 'en-US';
+  // Prefer a natural English voice; avoid robotic Microsoft/default voices
+  const voices = synth.getVoices();
+  const pref = voices.find(v => /en[-_](US|GB|AU)/i.test(v.lang) && !/microsoft|zira|david|hazel/i.test(v.name))
+            || voices.find(v => /en/i.test(v.lang));
+  if (pref) u.voice = pref;
+  // iOS bug: sometimes the utterance hangs — kick synth first
+  if (synth.paused) synth.resume();
+  synth.speak(u);
+}
+
+/* ── Maneuver type → arrow SVG + voice verb ────────────────────────────*/
+function maneuverInfo(step) {
+  const type = step.maneuver?.type     || "continue";
+  const mod  = step.maneuver?.modifier || "straight";
+  const name = step.name || step.ref   || "";
+
+  const ARROWS = {
+    straight:       `<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>`,
+    "slight right": `<line x1="6" y1="18" x2="18" y2="6"/><polyline points="10 6 18 6 18 14"/>`,
+    right:          `<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>`,
+    "sharp right":  `<path d="M5 18 Q18 18 18 5"/><polyline points="13 5 18 5 18 10"/>`,
+    "slight left":  `<line x1="18" y1="18" x2="6" y2="6"/><polyline points="14 6 6 6 6 14"/>`,
+    left:           `<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/>`,
+    "sharp left":   `<path d="M19 18 Q6 18 6 5"/><polyline points="11 5 6 5 6 10"/>`,
+    uturn:          `<path d="M7 17 V7 a5 5 0 0 1 10 0v3"/><polyline points="13 7 17 10 13 13"/>`,
+  };
+
+  const VOICE_TURN = {
+    straight:       "Continue straight",
+    "slight right": "Bear right",
+    right:          "Turn right",
+    "sharp right":  "Turn sharp right",
+    "slight left":  "Bear left",
+    left:           "Turn left",
+    "sharp left":   "Turn sharp left",
+    uturn:          "Make a U-turn",
+  };
+
+  let svg    = ARROWS[mod]  || ARROWS.straight;
+  let verb   = VOICE_TURN[mod] || "Continue";
+  let color  = "#3b9eff";
+  let boxCls = "";
+
+  if (type === "arrive") {
+    svg    = `<circle cx="12" cy="12" r="4" fill="#00c96e" stroke="none"/><circle cx="12" cy="12" r="9"/>`;
+    verb   = "Arrive";
+    color  = "#00c96e";
+    boxCls = "arrival";
+  } else if (type === "depart") {
+    svg  = ARROWS.straight;
+    verb = "Head";
+  } else if (type === "roundabout" || type === "rotary") {
+    svg  = `<circle cx="12" cy="12" r="6"/><polyline points="12 6 12 9"/><path d="M16 8 a6 6 0 0 1 0 8"/>`;
+    verb = "At the roundabout, take exit";
+    if (step.maneuver.exit) verb += ` ${step.maneuver.exit}`;
+  } else if (mod === "uturn") {
+    boxCls = "u-turn";
+    color  = "#f5a622";
+  }
+
+  const onName    = name ? ` onto ${name}` : "";
+  const voiceText = `${verb}${onName}`;
+  const display   = type === "arrive" ? "You have arrived" : verb;
+
+  return { svg, color, boxCls, display, street: name, voiceText };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NAVIGATION ENGINE
+   ═══════════════════════════════════════════════════════════════════════ */
+function updateNavRow() {
+  document.getElementById("nav-row").style.display = stops.length ? "block" : "none";
+}
+
+async function startNav() {
+  if (!stops.length)  { pill("Add stops first", 1800, "red");  return; }
+  if (!routeLine)     { pill("Optimize first",  1800, "red");  return; }
+  if (!start)         { pill("Waiting for GPS…", 1800);         return; }
+  if (savedStart)     { switchToGPS(); return; }
+
+  // Unlock voice on this user gesture (covers all browsers)
+  unlockSpeech();
+
+  navStops    = [...stops].sort((a,b) => a.pos - b.pos);
+  navStopIdx  = 0;
+  navMuted    = false;
+  navFollowing = true;  // always start locked to GPS
+  document.getElementById("btn-mute").classList.remove("muted");
+  document.getElementById("btn-recenter").classList.remove("show");
+
+  navStartTs = Date.now();
+  isNav = true;
+  document.body.classList.add("navigating");
+  document.getElementById("nav-overlay").classList.add("active");
+  document.getElementById("nav-progress-bar").style.display = "block";
+
+  // Immediately zoom to user position before steps arrive
+  const pos = gpsCurrent || start;
+  if (pos) map.setView(pos, Math.max(map.getZoom(), 17));
+
+  await fetchNavSteps();
+}
+
+async function fetchNavSteps() {
+  if (!start || !stops.length) return;
+  const coordStr = [start, ...stops.map(s=>s.coord)].map(c=>`${c[1]},${c[0]}`).join(";");
+  try {
+    const data = await fetch(
+      `https://router.project-osrm.org/trip/v1/driving/${coordStr}?source=first&roundtrip=false&steps=true&geometries=geojson`
+    ).then(r => r.json());
+
+    if (!data.trips?.length) return;
+
+    navSteps = [];
+    let legIdx = 0;
+    for (const leg of data.trips[0].legs) {
+      for (const step of leg.steps) {
+        navSteps.push({
+          ...step,
+          _legIdx: legIdx,
+          _coord: step.maneuver?.location
+            ? [step.maneuver.location[1], step.maneuver.location[0]]
+            : null
+        });
+      }
+      legIdx++;
+    }
+
+    clearStepMarkers();
+    navSteps.forEach(step => {
+      if (!step._coord || step.maneuver?.type === "depart") return;
+      const m = L.marker(step._coord, {
+        icon: stepDotIcon(), zIndexOffset: 500, interactive: false
+      }).addTo(map);
+      stepMarkers.push(m);
     });
 
-    updatePanelLayout();
+    navStepIdx = 0; lastVoicedStep = -1; voiced400 = false; voiced100 = false;
+    updateNavHUD();
+
+    const dest = navStops[0]?.address || "your first stop";
+    speak(`Starting navigation to ${dest}.`, true);
+
+  } catch(e) {
+    console.error("OSRM steps:", e);
+    updateNavHUDFallback();
+  }
+}
+
+function clearStepMarkers() {
+  stepMarkers.forEach(m => map.removeLayer(m));
+  stepMarkers = [];
+}
+
+/* ── GPS update callback during navigation ────────────────────────────── */
+function onNavGPSUpdate() {
+  if (!isNav || !start) return;
+
+  // Advance turn-by-turn steps
+  if (navSteps.length) advanceStepByProximity();
+
+  // Check destination stop arrival
+  if (navStopIdx < navStops.length) {
+    const dist = hav(start, navStops[navStopIdx].coord);
+    if (dist < 40) onStopArrival();
+  }
+
+  updateNavHUD();
+
+  // ── AUTO-PAN: always keep user centred while navFollowing is true ────
+  // Uses panTo (no zoom change) for smooth continuous tracking, setView
+  // only when the zoom needs boosting.
+  if (navFollowing) {
+    const z = map.getZoom();
+    const NAV_ZOOM = 17;
+    if (z < NAV_ZOOM) {
+      // Need to change zoom — use setView with animation
+      map.setView(start, 17);
+    } else {
+      map.panTo(start);
+    }
+  }
+}
+
+function advanceStepByProximity() {
+  if (navStepIdx >= navSteps.length) return;
+
+  const step = navSteps[navStepIdx];
+  if (!step._coord) { navStepIdx++; return; }
+
+  const dist = hav(start, step._coord);
+
+  // 400 m advance warning
+  if (!voiced400 && dist < 400 && navStepIdx !== lastVoicedStep) {
+    const info = maneuverInfo(step);
+    if (step.maneuver?.type !== "depart" && step.maneuver?.type !== "arrive") {
+      speak(`In ${fmtDist(dist)}, ${info.voiceText}`, false);
+    }
+    voiced400 = true;
+  }
+  // 100 m turn instruction
+  if (!voiced100 && dist < 100 && navStepIdx !== lastVoicedStep) {
+    const info = maneuverInfo(step);
+    if (step.maneuver?.type !== "depart" && step.maneuver?.type !== "arrive") {
+      speak(info.voiceText, true);
+    }
+    voiced100 = true;
+  }
+  // Crossed maneuver point (within 30 m)
+  if (dist < 30) {
+    lastVoicedStep = navStepIdx;
+    voiced400 = false; voiced100 = false;
+    navStepIdx++;
+
+    if (navStepIdx < navSteps.length) {
+      const nextStep = navSteps[navStepIdx];
+      const info     = maneuverInfo(nextStep);
+      if (nextStep.maneuver?.type !== "arrive") {
+        const upcoming = navStepIdx + 1 < navSteps.length
+          ? maneuverInfo(navSteps[navStepIdx + 1]).voiceText
+          : null;
+        if (upcoming && (nextStep.distance || 0) < 300) {
+          speak(`${info.voiceText}, then ${upcoming}`, false);
+        }
+      }
+    }
+  }
+}
+
+function onStopArrival() {
+  if (navigator.vibrate) navigator.vibrate([200,100,200]);
+  const arrived = navStops[navStopIdx];
+  speak(`Arrived at stop ${arrived.pos}. ${arrived.address}.`, true);
+  pill(`Arrived · Stop ${arrived.pos}`, 3200, "green");
+
+  const i = stops.indexOf(arrived);
+  if (i !== -1 && markers[i]) markers[i].setIcon(makePin("✓","#00a558"));
+
+  navStopIdx++;
+  if (navStopIdx >= navStops.length) {
+    setTimeout(() => {
+      speak("Route complete. All stops reached.", true);
+      pill("Route complete! 🎉", 5000, "green");
+      updateNavHUD();
+      setTimeout(stopNav, 6000);
+    }, 600);
+  } else {
+    const next = navStops[navStopIdx];
+    setTimeout(() => speak(`Heading to stop ${next.pos}. ${next.address}.`, false), 1200);
+  }
+}
+
+function stopNav() {
+  isNav = false;
+  navFollowing = true;
+  clearStepMarkers();
+  document.body.classList.remove("navigating");
+  document.getElementById("nav-overlay").classList.remove("active");
+  document.getElementById("nav-progress-bar").style.display = "none";
+  document.getElementById("btn-recenter").classList.remove("show");
+  if (synth) synth.cancel();
+  if (routeLine) map.fitBounds(routeLine.getBounds(), { padding:[28,28] });
+  markers.forEach((m,i) => {
+    if (stops[i]) m.setIcon(makePin(stops[i].pos||"·", stops[i].pos?"#e3293a":"#2a1014"));
   });
+}
 
-  // --- CORE FUNCTIONS ---
-  function togglePinMode() {
-    isPinMode = !isPinMode;
-    const btn = document.getElementById('btn-pin');
-    const mapEl = document.getElementById('map');
-    
-    if (isPinMode) {
-      btn.classList.add('active');
-      mapEl.classList.add('pin-mode');
-      showStatus('Tap map to select location', 'blue');
+/* ── NAV HUD update ───────────────────────────────────────────────────── */
+function updateNavHUD() {
+  const totalStops = navStops.length;
+  const doneStops  = navStopIdx;
+  const totalSteps = navSteps.length || 1;
+
+  document.getElementById("nav-progress-fill").style.width =
+    `${Math.round((navStepIdx / totalSteps) * 100)}%`;
+
+  const stopPill = document.getElementById("nav-stop-pill");
+  if (navStopIdx >= totalStops) {
+    stopPill.textContent = "All stops done";
+    stopPill.className   = "nav-pill done";
+  } else {
+    stopPill.textContent = `Stop ${navStopIdx+1} of ${totalStops}`;
+    stopPill.className   = "nav-pill";
+  }
+
+  const remPill = document.getElementById("nav-remain-pill");
+  const rem     = totalStops - doneStops;
+  remPill.textContent = rem > 0 ? `${rem} left` : "Done";
+  remPill.className   = rem > 0 ? "nav-pill" : "nav-pill done";
+
+  if (navSteps.length && navStepIdx < navSteps.length) {
+    const step = navSteps[navStepIdx];
+    const info = maneuverInfo(step);
+
+    document.getElementById("nav-inst").textContent   = info.display;
+    document.getElementById("nav-street").textContent = info.street;
+
+    const box    = document.getElementById("nav-arrow-box");
+    box.className = "nav-arrow-box " + info.boxCls;
+    const svgEl  = document.getElementById("nav-arrow-svg");
+    svgEl.innerHTML = info.svg;
+    svgEl.setAttribute("stroke", info.color);
+
+    if (start && step._coord) {
+      const d = hav(start, step._coord);
+      document.getElementById("nav-step-dist").textContent = fmtDist(d);
+      document.getElementById("nav-step-dist").className   = "nav-pill active";
     } else {
-      btn.classList.remove('active');
-      mapEl.classList.remove('pin-mode');
+      document.getElementById("nav-step-dist").textContent = fmtDist(step.distance || 0);
     }
-  }
 
-  function addStop() {
-    const input = document.getElementById('address');
-    const val = input.value.trim();
-    if (!val) return;
-
-    // Simple mock logic: if it looks like coordinates, use them. Otherwise randomize nearby.
-    let lat, lng;
-    if (val.includes(',')) {
-      const parts = val.split(',');
-      lat = parseFloat(parts[0]);
-      lng = parseFloat(parts[1]);
+    const nextRow = document.getElementById("nav-next-row");
+    if (navStepIdx + 1 < navSteps.length) {
+      const nxt     = navSteps[navStepIdx + 1];
+      const nxtInfo = maneuverInfo(nxt);
+      document.getElementById("nav-next-icon").innerHTML =
+        `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${nxtInfo.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${nxtInfo.svg}</svg>`;
+      document.getElementById("nav-next-text").textContent =
+        nxtInfo.display + (nxt.name ? ` onto ${nxt.name}` : "");
+      nextRow.classList.add("show");
     } else {
-      // Mock coordinates if user just typed text
-      const center = map.getCenter();
-      lat = center.lat + (Math.random() - 0.5) * 0.1;
-      lng = center.lng + (Math.random() - 0.5) * 0.1;
+      nextRow.classList.remove("show");
     }
-
-    const stop = { id: Date.now(), name: val, lat, lng };
-    stops.push(stop);
-    
-    // Add marker to map
-    const marker = L.circleMarker([lat, lng], {
-      radius: 8, fillColor: 'var(--red)', color: '#fff', weight: 2, fillOpacity: 1
-    }).addTo(map);
-    markers.push({ id: stop.id, layer: marker });
-
-    input.value = '';
-    map.setView([lat, lng], 13);
-    renderStops();
-    checkNavReady();
+  } else if (navStopIdx >= totalStops) {
+    document.getElementById("nav-inst").textContent   = "All stops reached";
+    document.getElementById("nav-street").textContent = "";
+    document.getElementById("nav-next-row").classList.remove("show");
+  } else {
+    updateNavHUDFallback();
   }
+}
 
-  function removeStop(id) {
-    stops = stops.filter(s => s.id !== id);
-    const markerObj = markers.find(m => m.id === id);
-    if (markerObj) {
-      map.removeLayer(markerObj.layer);
-      markers = markers.filter(m => m.id !== id);
-    }
-    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-    renderStops();
-    checkNavReady();
+function updateNavHUDFallback() {
+  if (navStopIdx < navStops.length) {
+    const t = navStops[navStopIdx];
+    document.getElementById("nav-inst").textContent   = t.address;
+    document.getElementById("nav-street").textContent = "";
+    if (start) document.getElementById("nav-step-dist").textContent = fmtDist(hav(start, t.coord));
   }
+}
 
-  function clearStops() {
-    stops = [];
-    markers.forEach(m => map.removeLayer(m.layer));
-    markers = [];
-    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-    renderStops();
-    checkNavReady();
-    showStatus('Route cleared', 'red');
+/* ── MUTE ─────────────────────────────────────────────────────────────── */
+function toggleMute() {
+  navMuted = !navMuted;
+  document.getElementById("btn-mute").classList.toggle("muted", navMuted);
+  if (navMuted && synth) synth.cancel();
+  pill(navMuted ? "Voice off" : "Voice on", 1400, navMuted ? "" : "blue");
+}
+
+/* ── GEOCODE ──────────────────────────────────────────────────────────── */
+async function reverseGeo(lat, lng) {
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      { headers: { Accept:"application/json" } }
+    ).then(r => r.json());
+    const a = r.address||{};
+    const n=a.house_number||"", rd=a.road||a.pedestrian||a.path||"";
+    const c=a.city||a.town||a.village||a.suburb||a.neighbourhood||"";
+    if (rd&&c) return `${n?n+" ":""}${rd}, ${c}`;
+    if (rd)    return `${n?n+" ":""}${rd}`;
+    if (r.display_name) return r.display_name.split(",").slice(0,2).join(",").trim();
+  } catch {}
+  return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
+async function fwdGeo(q) {
+  if (!start) throw new Error("No GPS");
+  const [lat,lon] = start;
+  const vb = `${lon-.25},${lat+.25},${lon+.25},${lat-.25}`;
+  const rs = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=10&viewbox=${vb}`,
+    { headers: { Accept:"application/json" } }
+  ).then(r => r.json());
+  if (!rs?.length) throw new Error("Not found");
+  let best=rs[0], bd=Infinity;
+  rs.forEach(it => { const d=hav([lat,lon],[+it.lat,+it.lon]); if(d<bd){bd=d;best=it;} });
+  return { coord:[+best.lat,+best.lon], display: best.display_name };
+}
+
+function shortAddr(s) {
+  return s.split(",").map(x=>x.trim()).filter(p=>p.length>1&&!/^\d{4,}$/.test(p)).slice(0,2).join(", ");
+}
+
+/* ── ADD / PUSH / REMOVE STOP ─────────────────────────────────────────── */
+async function doAddStop() {
+  const inp = document.getElementById("address");
+  const btn = document.getElementById("btn-add");
+  const val = inp.value.trim();
+  if (!val) return;
+  if (!start) { pill("Waiting for GPS…", 2000); return; }
+  btn.textContent="…"; btn.classList.add("loading"); inp.disabled=true;
+  try {
+    const { coord, display } = await fwdGeo(val);
+    await pushStop(coord, shortAddr(display));
+    inp.value = "";
+    doOptimize();
+  } catch {
+    inp.style.borderColor="rgba(227,41,58,.5)"; inp.style.background="rgba(227,41,58,.07)";
+    pill("Address not found", 1800, "red");
+    setTimeout(() => { inp.style.borderColor=""; inp.style.background=""; }, 1400);
+  } finally {
+    btn.textContent="Add"; btn.classList.remove("loading"); inp.disabled=false;
   }
+}
 
-  function renderStops() {
-    const container = document.getElementById('stops-scroll');
-    if (stops.length === 0) {
-      container.innerHTML = `<div id="empty"><strong>No Stops Added</strong>Search above or pin locations on the map.</div>`;
-      return;
-    }
+async function pushStop(coord, known) {
+  const s = { coord, address: known || "Locating…", pos: 0 };
+  stops.push(s);
+  const m = L.marker(coord, { icon: makePin("·","#2a1014") }).addTo(map).bindPopup(s.address);
+  markers.push(m);
+  document.getElementById("empty").style.display = "none";
+  updateSaveBtn(); updateNavRow(); renderStops();
+  if (!known) {
+    const addr = await reverseGeo(coord[0], coord[1]);
+    s.address = addr; m.setPopupContent(addr); renderStops();
+  }
+}
 
-    container.innerHTML = stops.map((stop, i) => `
-      <div class="stop-row">
-        <div class="stop-badge">${i + 1}</div>
-        <div class="stop-meta">
-          <span class="stop-name">${stop.name}</span>
-        </div>
-        <button class="stop-del" onclick="removeStop(${stop.id})">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+function removeStop(i) {
+  map.removeLayer(markers[i]); markers.splice(i,1); stops.splice(i,1);
+  if (!stops.length) { clearLines(); document.getElementById("empty").style.display=""; }
+  else { stops.forEach(s=>s.pos=0); doOptimize(); }
+  updateSaveBtn(); updateNavRow(); renderStops();
+}
+
+/* ── RENDER STOPS ─────────────────────────────────────────────────────── */
+function renderStops() {
+  const opt   = stops.some(s => s.pos > 0);
+  const items = stops.map((s,i) => ({...s, _i:i}));
+  if (opt) items.sort((a,b) => a.pos-b.pos);
+  const lbl = document.getElementById("stops-section-label");
+  lbl.style.display = stops.length ? "flex" : "none";
+  lbl.textContent   = opt ? "Optimized Order" : "Stops";
+  document.getElementById("stops-list").innerHTML = items.map(s => `
+    <div class="stop-row">
+      <div class="stop-badge${s.pos?"":" dim"}">${s.pos||"·"}</div>
+      <div class="stop-meta">
+        <span class="stop-name${s.address==="Locating…"?" locating":""}">${esc(s.address)}</span>
+        <span class="stop-coords">${s.coord[0].toFixed(4)}, ${s.coord[1].toFixed(4)}</span>
+      </div>
+      <button class="stop-del" onclick="removeStop(${s._i})" aria-label="Remove">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>`).join("");
+  requestAnimationFrame(() => {
+    const sc = document.getElementById("stops-scroll");
+    document.getElementById("stops-outer").classList.toggle("overflow", sc.scrollHeight > sc.clientHeight+4);
+  });
+}
+
+/* ── ROUTE LINES ──────────────────────────────────────────────────────── */
+function clearLines() {
+  if (glowLine)  { map.removeLayer(glowLine);  glowLine  = null; }
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+}
+
+/* ── OPTIMIZE ─────────────────────────────────────────────────────────── */
+async function doOptimize() {
+  if (!start || !stops.length) return;
+  const myGen = ++optGen;
+  clearLines();
+  const coords = [start, ...stops.map(s=>s.coord)].map(c=>`${c[1]},${c[0]}`).join(";");
+  try {
+    const data = await fetch(
+      `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
+    ).then(r => r.json());
+    if (optGen !== myGen || !data.trips?.length) return;
+    stops.forEach((s,i) => { s.pos = data.waypoints[i+1].waypoint_index; });
+    const mn = Math.min(...stops.map(s=>s.pos));
+    stops.forEach(s => { s.pos = s.pos - mn + 1; });
+    markers.forEach((m,i) => m.setIcon(makePin(stops[i].pos,"#e3293a")));
+    renderStops(); updateNavRow();
+    const pts = data.trips[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+    glowLine  = L.polyline(pts, { color:"#e3293a", weight:11, opacity:.13, lineCap:"round", lineJoin:"round" }).addTo(map);
+    routeLine = L.polyline(pts, { color:"#e3293a", weight:3.5, opacity:.92, lineCap:"round", lineJoin:"round" }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding:[28,28] });
+  } catch(e) { console.error("OSRM:", e); }
+}
+
+/* ── CLEAR ────────────────────────────────────────────────────────────── */
+function doClear() {
+  stopNav(); optGen++;
+  clearLines(); clearStepMarkers();
+  markers.forEach(m => map.removeLayer(m)); markers=[]; stops=[];
+  if (savedStartMk) { map.removeLayer(savedStartMk); savedStartMk=null; }
+  document.getElementById("stops-list").innerHTML="";
+  document.getElementById("empty").style.display="";
+  document.getElementById("stops-section-label").style.display="none";
+  document.getElementById("stops-outer").classList.remove("overflow");
+  updateSaveBtn(); updateNavRow();
+}
+
+/* ── NIGHT MODE ───────────────────────────────────────────────────────── */
+function toggleNight() {
+  darkMode = !darkMode;
+  document.getElementById("btn-night").classList.toggle("active", darkMode);
+  if (darkMode) { map.removeLayer(tileLight); tileDark.addTo(map); }
+  else          { map.removeLayer(tileDark);  tileLight.addTo(map); }
+}
+
+function updateSaveBtn() {
+  document.getElementById("btn-save").classList.toggle("ready", stops.length>0);
+}
+
+/* ── PERSISTENCE ──────────────────────────────────────────────────────── */
+const LS = "rr_v3";
+const getSaved = () => { try { return JSON.parse(localStorage.getItem(LS))||[]; } catch { return []; } };
+const putSaved = r  => localStorage.setItem(LS, JSON.stringify(r));
+function refreshBadge() {
+  const n=getSaved().length;
+  const b=document.getElementById("rbadge");
+  b.textContent=n; b.classList.toggle("on",n>0);
+}
+
+/* ── SAVE MODAL ───────────────────────────────────────────────────────── */
+function openSave() {
+  if (!stops.length) { pill("Add stops first", 1800, "red"); return; }
+  document.getElementById("save-sub").textContent=`${stops.length} stop${stops.length!==1?"s":""} will be saved`;
+  const inp=document.getElementById("route-name"); inp.value="";
+  document.getElementById("save-start-chk").checked=false;
+  document.getElementById("backdrop").classList.add("on");
+  document.getElementById("save-modal").classList.add("on");
+  setTimeout(()=>inp.focus(),350);
+}
+function closeSave() {
+  document.getElementById("backdrop").classList.remove("on");
+  document.getElementById("save-modal").classList.remove("on");
+  document.getElementById("route-name").blur();
+}
+function confirmSave() {
+  const inp=document.getElementById("route-name");
+  const name=inp.value.trim();
+  if (!name) {
+    inp.style.borderColor="rgba(227,41,58,.5)"; inp.style.background="rgba(227,41,58,.07)";
+    setTimeout(()=>{inp.style.borderColor="";inp.style.background="";},1200);
+    return;
+  }
+  const withStart=document.getElementById("save-start-chk").checked;
+  const saved=getSaved();
+  saved.unshift({
+    id: Date.now(), name,
+    stops: stops.map(s=>({coord:s.coord,address:s.address})),
+    savedStart: withStart&&start?start:null,
+    savedAt: new Date().toISOString()
+  });
+  putSaved(saved); refreshBadge(); closeSave();
+  pill(withStart?"Route + start saved ✓":"Route saved ✓", 2200, "green");
+}
+
+/* ── ROUTES DRAWER ────────────────────────────────────────────────────── */
+function openRoutes()  { renderDrawer(); document.getElementById("backdrop").classList.add("on"); document.getElementById("routes-drawer").classList.add("on"); }
+function closeRoutes() { document.getElementById("backdrop").classList.remove("on"); document.getElementById("routes-drawer").classList.remove("on"); }
+function closeAll()    { closeSave(); closeRoutes(); }
+
+function renderDrawer() {
+  const routes = getSaved();
+  const el     = document.getElementById("drawer-list");
+  if (!routes.length) {
+    el.innerHTML=`<div class="drawer-empty"><strong>No saved routes</strong>Build a route and tap Save</div>`;
+    return;
+  }
+  el.innerHTML = routes.map(r => {
+    const dt    = new Date(r.savedAt).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+    const cnt   = r.stops.length;
+    const fbadge= r.savedStart
+      ? `<span class="fixed-badge"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Fixed start</span>`
+      : "";
+    return `<div class="rcard" id="rc-${r.id}">
+      <div class="rcard-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <div class="rcard-info">
+        <div class="rcard-name">${esc(r.name)}</div>
+        <div class="rcard-meta">${cnt} stop${cnt!==1?"s":""} · ${dt} ${fbadge}</div>
+      </div>
+      <div class="rcard-acts">
+        <button class="rcard-btn load" onclick="loadRoute(${r.id})" title="Load">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+        </button>
+        <button class="rcard-btn del" onclick="askDel(${r.id})" title="Delete">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
       </div>
-    `).join('');
-  }
+      <div class="rcard-confirm">
+        <span>Delete "${esc(r.name)}"?</span>
+        <button class="rcard-no"  onclick="cancelDel(${r.id})">Keep</button>
+        <button class="rcard-yes" onclick="confirmDel(${r.id})">Delete</button>
+      </div>
+    </div>`;
+  }).join("");
+}
 
-  function checkNavReady() {
-    const navRow = document.getElementById('nav-row');
-    if (stops.length >= 2) {
-      navRow.style.display = 'block';
-    } else {
-      navRow.style.display = 'none';
+async function loadRoute(id) {
+  const r=getSaved().find(x=>x.id===id); if(!r) return;
+  doClear(); closeRoutes();
+  if (r.savedStart) {
+    savedStart=r.savedStart; start=r.savedStart;
+    map.setView(start,14);
+    savedStartMk=L.marker(start,{icon:makePin("S","#c08010"),zIndexOffset:1500}).addTo(map).bindPopup("<b>Saved start point</b>");
+    document.getElementById("start-banner").classList.add("on");
+  } else {
+    savedStart=null;
+    document.getElementById("start-banner").classList.remove("on");
+  }
+  for (const s of r.stops) await pushStop(s.coord, s.address);
+  doOptimize();
+  pill(`Loaded: ${r.name}`, 2400);
+}
+
+function askDel(id)    { document.querySelectorAll(".rcard.confirming").forEach(e=>e.classList.remove("confirming")); document.getElementById(`rc-${id}`)?.classList.add("confirming"); }
+function cancelDel(id) { document.getElementById(`rc-${id}`)?.classList.remove("confirming"); }
+function confirmDel(id){ putSaved(getSaved().filter(r=>r.id!==id)); refreshBadge(); renderDrawer(); }
+
+/* ── STOPS SCROLL ISOLATION ───────────────────────────────────────────── */
+document.getElementById("stops-scroll").addEventListener("touchmove", e => {
+  e.stopPropagation();
+}, { passive:true });
+
+/* ── ORIENTATION CHANGE ───────────────────────────────────────────────── */
+window.addEventListener("orientationchange", () => {
+  navStartTs = Date.now();
+  setTimeout(() => map.invalidateSize({ pan: false }), 400);
+});
+
+/* ── BOOT ─────────────────────────────────────────────────────────────── */
+refreshBadge();
+startGPS();
+
+// Preload voice list so it's ready before navigation starts
+if (synth) {
+  setTimeout(() => {
+    const voices = synth.getVoices();
+    // If empty, wait for onvoiceschanged (Chrome async load)
+    if (!voices.length) {
+      synth.onvoiceschanged = () => synth.getVoices();
     }
-    updatePanelLayout();
-  }
+  }, 500);
+}
 
-  function optimizeRoute() {
-    if (stops.length < 2) {
-      showStatus('Need at least 2 stops', 'red');
-      return;
-    }
-    showStatus('Optimizing Route...', 'green');
-    
-    // Draw a mock line between stops
-    if (routeLine) map.removeLayer(routeLine);
-    const latlngs = stops.map(s => [s.lat, s.lng]);
-    routeLine = L.polyline(latlngs, { color: 'var(--blue)', weight: 4, opacity: 0.8 }).addTo(map);
-    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-  }
-
-  // --- NAVIGATION MODE ---
-  function startNavigation() {
-    if (stops.length < 2) return;
-    document.body.classList.add('navigating');
-    document.getElementById('nav-overlay').classList.add('active');
-    document.getElementById('nav-progress-bar').style.display = 'block';
-    document.getElementById('btn-recenter').classList.add('show');
-    showStatus('Navigation Started', 'blue');
-    
-    // Mock progress bar animation
-    setTimeout(() => { document.getElementById('nav-progress-fill').style.width = '30%'; }, 500);
-  }
-
-  function stopNavigation() {
-    document.body.classList.remove('navigating');
-    document.getElementById('nav-overlay').classList.remove('active');
-    document.getElementById('nav-progress-bar').style.display = 'none';
-    document.getElementById('nav-progress-fill').style.width = '0%';
-    document.getElementById('btn-recenter').classList.remove('show');
-  }
-
-  function reCenterMap() {
-    if (stops.length > 0) {
-      map.setView([stops[0].lat, stops[0].lng], 15);
-    }
-  }
-
-  // --- UTILS & UI ---
-  function showStatus(text, colorClass) {
-    const pill = document.getElementById('status-pill');
-    pill.textContent = text;
-    pill.className = `show ${colorClass}`;
-    setTimeout(() => pill.classList.remove('show'), 3000);
-  }
-
-  function updatePanelLayout() {
-    const panel = document.getElementById('panel');
-    document.documentElement.style.setProperty('--panel-visible', `${panel.offsetHeight}px`);
-  }
-
-  function openSaveSheet() {
-    document.getElementById('backdrop').classList.add('on');
-    document.getElementById('save-sheet').classList.add('on');
-  }
-
-  function toggleRoutesDrawer() {
-    document.getElementById('backdrop').classList.add('on');
-    document.getElementById('routes-drawer').classList.add('on');
-  }
-
-  function closeAllSheets() {
-    document.getElementById('backdrop').classList.remove('on');
-    document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on'));
-  }
-
-  // Update layout variable on window resize
-  window.addEventListener('resize', updatePanelLayout);
-
+requestAnimationFrame(() => map.invalidateSize());
+window.addEventListener("resize", () => {
+  map.invalidateSize({ pan: false });
+});
 </script>
 </body>
 </html>
