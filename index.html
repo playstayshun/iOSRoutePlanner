@@ -645,6 +645,7 @@ map.on("dragstart", () => {
 
 /* ── RE-CENTER ────────────────────────────────────────────────────────── */
 function reCenter() {
+  navStartTs = Date.now();
   navFollowing = true;
   document.getElementById("btn-recenter").classList.remove("show");
   if (start) {
