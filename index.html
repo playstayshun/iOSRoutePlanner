@@ -595,6 +595,7 @@ let navStops       = [];
 let navStopIdx     = 0;
 let navSteps       = [];
 let navStepIdx     = 0;
+let navStartTs     = 0;
 let navMuted       = false;
 let gpsWatcher     = null;
 let gpsMarker      = null;
@@ -634,6 +635,7 @@ tileDark.addTo(map);
 map.on("dragstart", () => {
   if (isNav) {
     // User manually panned — release GPS lock, show re-center button
+   if (Date.now() - navStartTs < 800) return;
     navFollowing = false;
     document.getElementById("btn-recenter").classList.add("show");
   } else {
@@ -932,13 +934,15 @@ async function startNav() {
   document.getElementById("btn-mute").classList.remove("muted");
   document.getElementById("btn-recenter").classList.remove("show");
 
+  navStartTs = Date.now();
   isNav = true;
   document.body.classList.add("navigating");
   document.getElementById("nav-overlay").classList.add("active");
   document.getElementById("nav-progress-bar").style.display = "block";
 
   // Immediately zoom to user position before steps arrive
-  if (start) map.setView(start, 17, { animate: true, duration: 0.6 });
+  const pos = gpsCurrent || start;
+  if (pos) map.setView(pos, Math.max(map.getZoom(), 17));
 
   await fetchNavSteps();
 }
@@ -1017,10 +1021,9 @@ function onNavGPSUpdate() {
     const NAV_ZOOM = 17;
     if (z < NAV_ZOOM) {
       // Need to change zoom — use setView with animation
-      map.setView(start, NAV_ZOOM, { animate: true, duration: 0.5 });
+      map.setView(start, 17);
     } else {
-      // Just pan — much smoother for continuous GPS updates
-      map.panTo(start, { animate: true, duration: 0.4, easeLinearity: 0.5, noMoveStart: true });
+      map.panTo(start);
     }
   }
 }
