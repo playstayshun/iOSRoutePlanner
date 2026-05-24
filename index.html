@@ -704,38 +704,73 @@ function pill(msg, ms, type) {
 (function() {
   const zone  = document.getElementById("drag-zone");
   const panel = document.getElementById("panel");
-  const SNAPS = [68, 250];
   let dragging = false, startY = 0, startBottom = 0;
-  function getPanelBottom() { const r = panel.getBoundingClientRect(); return window.innerHeight - r.top; }
+  
+  function getPanelBottom() { 
+    return window.innerHeight - panel.getBoundingClientRect().top; 
+  }
+  
   function snapTo(h) {
     panel.style.transition = "transform .34s cubic-bezier(.32,.72,0,1)";
-    const full = panel.scrollHeight;
-    panel.style.transform = `translateY(${Math.max(0, full - h)}px)`;
-    setTimeout(() => { panel.style.transition = ""; adjustZoom(h); }, 350);
+    const full = panel.offsetHeight;
+    // Prevent pushing the panel completely off screen, snap exactly to bottom
+    const offset = Math.max(0, full - h);
+    panel.style.transform = `translateY(${offset}px)`;
+    setTimeout(() => { panel.style.transition = ""; adjustZoom(full - offset); }, 350);
   }
+  
   function adjustZoom(visH) {
-    document.documentElement.style.setProperty("--panel-visible", (visH+16)+"px");
+    document.documentElement.style.setProperty("--panel-visible", (visH + 16) + "px");
   }
+
   zone.addEventListener("touchstart", e => {
-    dragging=true; startY=e.touches[0].clientY; startBottom=getPanelBottom();
-    panel.style.transition="none";
+    dragging = true; startY = e.touches[0].clientY; startBottom = getPanelBottom();
+    panel.style.transition = "none";
   }, { passive:true });
+  
   document.addEventListener("touchmove", e => {
     if (!dragging) return;
     const dy = startY - e.touches[0].clientY;
-    const newH = Math.min(window.innerHeight*.8, Math.max(60, startBottom+dy));
-    panel.style.transform = `translateY(${Math.max(0, panel.scrollHeight - newH)}px)`;
+    const full = panel.offsetHeight;
+    // Allow drag between 120px (collapsed) and the dynamic full height
+    const newH = Math.min(full, Math.max(120, startBottom + dy));
+    panel.style.transform = `translateY(${full - newH}px)`;
     adjustZoom(newH);
   }, { passive:true });
+  
   document.addEventListener("touchend", () => {
-    if (!dragging) return; dragging=false; panel.style.transition="";
-    const h = getPanelBottom(), mid = (SNAPS[0]+SNAPS[1])/2;
-    snapTo(h < mid ? SNAPS[0] : SNAPS[1]);
+    if (!dragging) return; 
+    dragging = false; 
+    panel.style.transition = "";
+    
+    const h = getPanelBottom();
+    const full = panel.offsetHeight;
+    // 120px shows the header, search, and action buttons. full shows everything.
+    const snaps = [120, full]; 
+    const mid = (snaps[0] + snaps[1]) / 2;
+    
+    snapTo(h < mid ? snaps[0] : snaps[1]);
     map.invalidateSize();
   });
+  
   let lastTap = 0;
-  zone.addEventListener("touchend", () => { const t=Date.now(); if(t-lastTap<280) snapTo(SNAPS[1]); lastTap=t; });
-  adjustZoom(SNAPS[1]);
+  zone.addEventListener("touchend", () => { 
+    const t = Date.now(); 
+    // Double tap drag handle to fully expand
+    if(t - lastTap < 280) snapTo(panel.offsetHeight); 
+    lastTap = t; 
+  });
+  
+  // Auto-adjust when new stops are added so the drawer doesn't break/hide them
+  const observer = new MutationObserver(() => {
+    if (!dragging && panel.style.transform === "translateY(0px)") {
+        snapTo(panel.offsetHeight);
+    }
+  });
+  observer.observe(document.getElementById("stops-list"), { childList: true });
+  
+  // Initialize panel fully open
+  setTimeout(() => snapTo(panel.offsetHeight), 100);
 })();
 
 /* ── MAP CLICK / PIN MODE ─────────────────────────────────────────────── */
