@@ -560,7 +560,6 @@ body.navigating .leaflet-control-zoom { display: none; }
     </div>
   </div>
 
-  <!-- Speed / ETA / Remaining stats -->
   <div id="nav-stats-row">
     <div class="nav-stat-box" id="nav-speed-box">
       <div class="nav-stat-label">Speed</div>
@@ -580,7 +579,6 @@ body.navigating .leaflet-control-zoom { display: none; }
     </div>
   </div>
 
-  <!-- Next turn teaser -->
   <div id="nav-next-row">
     <span id="nav-next-icon">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -594,7 +592,7 @@ body.navigating .leaflet-control-zoom { display: none; }
 
 <div id="status-pill"></div>
 
-<!-- Stop Overview panel (slides up during nav) -->
+<!-- Stop Overview panel -->
 <div id="stop-overview">
   <div class="overview-pip"></div>
   <div class="overview-hdr">
@@ -709,8 +707,13 @@ body.navigating .leaflet-control-zoom { display: none; }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
-   SIMPLE ROUTE PLANNER  v2 — Map rotation, Speed, ETA, Rerouting,
-   Stop Overview, Color-coded route progress, Speed-adaptive zoom
+   SIMPLE ROUTE PLANNER  v2.1 — Stable nav view, smooth follow
+   Key fixes:
+   - Pan-only follow, zoom only changes when speed band crosses a threshold
+   - Heading smoothed with exponential moving average, ignores low-speed jitter
+   - flyTo replaces abrupt setView for zoom changes
+   - Off-course threshold widened to 120m
+   - Map follow uses panTo with animation, not setView
    ═══════════════════════════════════════════════════════════════════════ */
 
 const esc = s => String(s)
@@ -718,9 +721,9 @@ const esc = s => String(s)
 
 /* ── STATE ────────────────────────────────────────────────────────────── */
 let gpsCurrent   = null;
-let gpsHeading   = null;   // degrees from true north
-let gpsSpeed     = null;   // m/s
-let gpsAccuracy  = null;   // metres
+let gpsHeading   = null;
+let gpsSpeed     = null;
+let gpsAccuracy  = null;
 let start        = null;
 let savedStart   = null;
 let savedStartMk = null;
@@ -728,7 +731,7 @@ let stops        = [];
 let markers      = [];
 let glowLine     = null;
 let routeLine    = null;
-let routeLineDone= null;   // green portion — completed route
+let routeLineDone= null;
 let stepMarkers  = [];
 let darkMode     = true;
 let pinMode      = false;
@@ -747,12 +750,35 @@ let gpsWatcher     = null;
 let gpsMarker      = null;
 let gpsAccCircle   = null;
 
-// ── Map rotation (course-up) ─────────────────────────────────────────
-let mapRotation    = 0;   // current map bearing in degrees
-let mapRotating    = false;
-const ROTATION_SMOOTH = 0.18; // lerp factor per frame
+// ── Smooth heading (EMA) ─────────────────────────────────────────────
+// We apply exponential moving average to heading to prevent map spinning
+// on noisy GPS. Only rotate when moving faster than MIN_HEADING_SPEED.
+let smoothHeading    = null;
+const HEADING_ALPHA  = 0.25;   // EMA factor — lower = smoother but laggier
+const MIN_HEADING_SPEED_MPS = 1.5; // ~3.4 mph — ignore heading below this
 
-// Following state
+// ── Map rotation ─────────────────────────────────────────────────────
+let mapRotation    = 0;
+let rotationRAF    = null;
+const ROTATION_SMOOTH = 0.12; // gentler lerp
+
+// ── Zoom throttling ──────────────────────────────────────────────────
+// Only change zoom when speed crosses a band boundary, not on every tick.
+// Bands: 0–8mph → z18, 8–25mph → z17, 25–45mph → z16, 45+mph → z15
+const ZOOM_BANDS = [
+  { maxMph: 8,  zoom: 18 },
+  { maxMph: 25, zoom: 17 },
+  { maxMph: 45, zoom: 16 },
+  { maxMph: Infinity, zoom: 15 },
+];
+let currentZoomBand = -1;  // index into ZOOM_BANDS, -1 = unknown
+
+// ── Pan throttle ─────────────────────────────────────────────────────
+// Don't call panTo more than once every PAN_INTERVAL_MS
+const PAN_INTERVAL_MS = 1500;
+let lastPanTime = 0;
+
+// ── Follow state ─────────────────────────────────────────────────────
 let navFollowing = true;
 let mapFollowing = true;
 
@@ -762,21 +788,21 @@ let voiced400      = false;
 let voiced100      = false;
 
 // ETA tracking
-let navRouteDistM  = 0;   // total route distance in metres
-let navDistDoneM   = 0;   // distance completed
-let navStartTime   = 0;   // Date.now() when nav started
-let lastPositions  = [];  // rolling window for speed smoothing
+let navRouteDistM  = 0;
+let navDistDoneM   = 0;
 
 // Off-course detection
 let offCourseCount  = 0;
 let rerouteTimer    = null;
-const OFF_COURSE_M  = 80;   // metres off route triggers reroute
-const OFF_COURSE_CT = 3;    // how many consecutive GPS ticks before rereouting
+const OFF_COURSE_M  = 120;  // widened from 80 → 120m to reduce false positives
+const OFF_COURSE_CT = 4;    // need 4 consecutive bad readings before rerouting
 
 /* ── MAP ──────────────────────────────────────────────────────────────── */
 const map = L.map("map", {
   tap: false, zoomControl: true, attributionControl: true,
-  fadeAnimation: true, zoomAnimation: true
+  fadeAnimation: true, zoomAnimation: true,
+  // Disable Leaflet's built-in keyboard pan — we control it
+  keyboard: false
 }).setView([37.7749, -122.4194], 12);
 
 map.zoomControl.setPosition("bottomright");
@@ -785,31 +811,28 @@ const tileDark  = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x
 const tileLight = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",              { maxZoom:20, attribution:"© OpenStreetMap" });
 tileDark.addTo(map);
 
-// ── Map rotation: apply CSS transform to the entire map pane ──────────
+// ── Map rotation ──────────────────────────────────────────────────────
 function applyMapRotation(deg, animated) {
   const pane = document.querySelector('.leaflet-map-pane');
   if (!pane) return;
   const cx = map.getSize().x / 2;
   const cy = map.getSize().y / 2;
-  pane.style.transition = animated ? 'transform 0.4s cubic-bezier(.25,.46,.45,.94)' : 'none';
+  pane.style.transition = animated ? 'transform 0.5s cubic-bezier(.25,.46,.45,.94)' : 'none';
   pane.style.transformOrigin = `${cx}px ${cy}px`;
   pane.style.transform = `rotate(${-deg}deg)`;
-  // Counter-rotate control containers so they stay upright
   document.querySelectorAll('.leaflet-control-container, .leaflet-popup-pane').forEach(el => {
     el.style.transform = `rotate(${deg}deg)`;
     el.style.transformOrigin = `${cx}px ${cy}px`;
   });
 }
 
-let rotationRAF = null;
 function smoothRotateTo(targetDeg) {
   if (rotationRAF) cancelAnimationFrame(rotationRAF);
   function step() {
     let diff = targetDeg - mapRotation;
-    // Shortest-path rotation
     while (diff > 180)  diff -= 360;
     while (diff < -180) diff += 360;
-    if (Math.abs(diff) < 0.5) { mapRotation = targetDeg; applyMapRotation(mapRotation, false); return; }
+    if (Math.abs(diff) < 0.4) { mapRotation = targetDeg; applyMapRotation(mapRotation, false); return; }
     mapRotation += diff * ROTATION_SMOOTH;
     applyMapRotation(mapRotation, false);
     rotationRAF = requestAnimationFrame(step);
@@ -817,12 +840,12 @@ function smoothRotateTo(targetDeg) {
   step();
 }
 
-// ── DRAG detection ────────────────────────────────────────────────────
-let mapIsDragging = false;
+// ── Drag detection ─────────────────────────────────────────────────
+let mapIsDragging  = false;
 let dragStartPoint = null;
 
 map.on("dragstart", () => {
-  mapIsDragging = true;
+  mapIsDragging  = true;
   dragStartPoint = map.project(map.getCenter(), map.getZoom());
 });
 map.on("dragend", () => {
@@ -843,8 +866,9 @@ map.on("dragend", () => {
 
 /* ── RE-CENTER ────────────────────────────────────────────────────────── */
 function reCenter() {
-  navStartTs = Date.now();
+  navStartTs   = Date.now();
   navFollowing = true;
+  currentZoomBand = -1; // force zoom recalc on next GPS tick
   document.getElementById("btn-recenter").classList.remove("show");
   if (start) map.setView(start, Math.max(map.getZoom(), 17), { animate:true, duration:0.5 });
 }
@@ -858,7 +882,6 @@ function makePin(label, bg) {
   });
 }
 
-// Directional arrow GPS icon — rotates with bearing
 function gpsArrowIcon(heading) {
   const h = (heading || 0);
   return L.divIcon({
@@ -904,7 +927,7 @@ function pill(msg, ms, type) {
   function getPanelBottom() { return window.innerHeight - panel.getBoundingClientRect().top; }
   function snapTo(h) {
     panel.style.transition = "transform .34s cubic-bezier(.32,.72,0,1)";
-    const full = panel.offsetHeight;
+    const full   = panel.offsetHeight;
     const offset = Math.max(0, full - h);
     panel.style.transform = `translateY(${offset}px)`;
     setTimeout(() => { panel.style.transition = ""; adjustZoom(full - offset); }, 350);
@@ -918,7 +941,7 @@ function pill(msg, ms, type) {
   }, { passive:true });
   document.addEventListener("touchmove", e => {
     if (!dragging) return;
-    const dy = startY - e.touches[0].clientY;
+    const dy   = startY - e.touches[0].clientY;
     const full = panel.offsetHeight;
     const newH = Math.min(full, Math.max(120, startBottom + dy));
     panel.style.transform = `translateY(${full - newH}px)`;
@@ -976,21 +999,34 @@ function startGPS() {
       gpsCurrent = newPos;
       gpsAccuracy = pos.coords.accuracy;
 
-      // Heading: prefer device heading, fall back to computed from movement
-      if (pos.coords.heading != null && !isNaN(pos.coords.heading)) {
-        gpsHeading = pos.coords.heading;
-      } else if (prevPos) {
-        gpsHeading = bearingBetween(prevPos, newPos);
-      }
-
-      // Speed (m/s → mph)
-      if (pos.coords.speed != null && !isNaN(pos.coords.speed)) {
+      // ── Speed ──────────────────────────────────────────────────────
+      if (pos.coords.speed != null && !isNaN(pos.coords.speed) && pos.coords.speed >= 0) {
         gpsSpeed = pos.coords.speed;
       } else if (prevPos) {
-        // Estimate from last two positions
-        const dt = 1; // approx 1s between ticks
-        gpsSpeed = hav(prevPos, newPos) / dt;
+        gpsSpeed = hav(prevPos, newPos); // rough m/s approximation (1s interval)
       }
+
+      // ── Heading: only update when moving, apply EMA ────────────────
+      let rawHeading = null;
+      if (pos.coords.heading != null && !isNaN(pos.coords.heading) && pos.coords.heading >= 0) {
+        rawHeading = pos.coords.heading;
+      } else if (prevPos && gpsSpeed > MIN_HEADING_SPEED_MPS) {
+        rawHeading = bearingBetween(prevPos, newPos);
+      }
+
+      if (rawHeading !== null && gpsSpeed > MIN_HEADING_SPEED_MPS) {
+        if (smoothHeading === null) {
+          smoothHeading = rawHeading;
+        } else {
+          // Shortest-path EMA for angles
+          let diff = rawHeading - smoothHeading;
+          while (diff > 180)  diff -= 360;
+          while (diff < -180) diff += 360;
+          smoothHeading = (smoothHeading + diff * HEADING_ALPHA + 360) % 360;
+        }
+        gpsHeading = smoothHeading;
+      }
+      // If too slow, keep last known heading (don't spin at stops)
 
       if (!savedStart) start = gpsCurrent;
 
@@ -1005,7 +1041,6 @@ function startGPS() {
         gpsMarker.setIcon(isNav ? gpsArrowIcon(gpsHeading) : gpsStaticIcon());
       }
 
-      // Accuracy circle
       updateAccuracyCircle();
 
       if (isNav) {
@@ -1017,7 +1052,7 @@ function startGPS() {
       }
     },
     err => console.warn("GPS:", err.message),
-    { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+    { enableHighAccuracy:true, timeout:10000, maximumAge:1000 }
   );
 }
 
@@ -1063,7 +1098,6 @@ function hav(a, b) {
   return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 
-// Point-to-segment distance (for off-course detection)
 function pointToSegmentDist(p, a, b) {
   const dx = b[0]-a[0], dy = b[1]-a[1];
   if (dx===0 && dy===0) return hav(p, a);
@@ -1075,26 +1109,27 @@ function fmtDist(m) {
   const mi = m / 1609.344;
   return mi < 0.1 ? `${Math.round(m*3.28084)} ft` : `${mi.toFixed(1)} mi`;
 }
-
-function fmtSpeed(mps) {
-  const mph = mps * 2.23694;
-  return `${Math.round(mph)} mph`;
-}
-
+function fmtSpeed(mps) { return `${Math.round(mps * 2.23694)} mph`; }
 function fmtETA(seconds) {
-  const now = new Date();
-  now.setSeconds(now.getSeconds() + seconds);
+  const now = new Date(); now.setSeconds(now.getSeconds() + seconds);
   let h = now.getHours(), m = now.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+  const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2,'0')} ${ap}`;
 }
-
 function fmtDuration(seconds) {
   if (seconds < 60) return `${Math.round(seconds)}s`;
   if (seconds < 3600) return `${Math.round(seconds/60)} min`;
   const h = Math.floor(seconds/3600), m = Math.round((seconds%3600)/60);
   return `${h}h ${m}m`;
+}
+
+/* ── SPEED → ZOOM BAND ────────────────────────────────────────────────── */
+function zoomBandForSpeed(mps) {
+  const mph = mps * 2.23694;
+  for (let i = 0; i < ZOOM_BANDS.length; i++) {
+    if (mph <= ZOOM_BANDS[i].maxMph) return i;
+  }
+  return ZOOM_BANDS.length - 1;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1116,7 +1151,6 @@ function unlockSpeech() {
     if (!synth.speaking && isNav) synth.resume();
   }, 10000);
 }
-
 document.addEventListener('touchstart', unlockSpeech, { once:true, passive:true });
 document.addEventListener('click', unlockSpeech, { once:true });
 if (synth) { synth.onvoiceschanged = () => synth.getVoices(); synth.getVoices(); }
@@ -1139,7 +1173,6 @@ function maneuverInfo(step) {
   const type = step.maneuver?.type     || "continue";
   const mod  = step.maneuver?.modifier || "straight";
   const name = step.name || step.ref   || "";
-
   const ARROWS = {
     straight:       `<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>`,
     "slight right": `<line x1="6" y1="18" x2="18" y2="6"/><polyline points="10 6 18 6 18 14"/>`,
@@ -1155,12 +1188,10 @@ function maneuverInfo(step) {
     "sharp right":"Turn sharp right", "slight left":"Bear left", left:"Turn left",
     "sharp left":"Turn sharp left", uturn:"Make a U-turn",
   };
-
   let svg    = ARROWS[mod]  || ARROWS.straight;
   let verb   = VOICE_TURN[mod] || "Continue";
   let color  = "#3b9eff";
   let boxCls = "";
-
   if (type === "arrive") {
     svg="<circle cx='12' cy='12' r='4' fill='#00c96e' stroke='none'/><circle cx='12' cy='12' r='9'/>";
     verb="Arrive"; color="#00c96e"; boxCls="arrival";
@@ -1171,7 +1202,6 @@ function maneuverInfo(step) {
     verb="At the roundabout, take exit";
     if (step.maneuver.exit) verb+=` ${step.maneuver.exit}`;
   } else if (mod === "uturn") { boxCls="u-turn"; color="#f5a622"; }
-
   const voiceText = `${verb}${name?" onto "+name:""}`;
   const display   = type==="arrive" ? "You have arrived" : verb;
   return { svg, color, boxCls, display, street:name, voiceText };
@@ -1184,20 +1214,9 @@ function updateNavRow() {
   document.getElementById("nav-row").style.display = stops.length ? "block" : "none";
 }
 
-// ── Speed-based zoom ─────────────────────────────────────────────────
-function navZoomForSpeed(mps) {
-  // mph equivalents: 0–15 → z18, 15–35 → z17, 35–55 → z16, 55+ → z15
-  const mph = mps * 2.23694;
-  if (mph < 5)  return 18;
-  if (mph < 20) return 17;
-  if (mph < 40) return 16;
-  return 15;
-}
-
-// ── Off-course detection ─────────────────────────────────────────────
+/* ── Off-course detection ─────────────────────────────────────────────── */
 function isOffCourse(pos) {
   if (!navSteps.length) return false;
-  // Check distance to current and next few step segments
   for (let i = Math.max(0, navStepIdx-1); i < Math.min(navSteps.length-1, navStepIdx+3); i++) {
     const a = navSteps[i]._coord;
     const b = navSteps[i+1]?._coord;
@@ -1208,7 +1227,7 @@ function isOffCourse(pos) {
 }
 
 async function doReroute() {
-  if (rerouteTimer) return; // already rerouting
+  if (rerouteTimer) return;
   document.getElementById("reroute-banner").classList.add("show");
   speak("Rerouting.", true);
   rerouteTimer = setTimeout(async () => {
@@ -1230,18 +1249,19 @@ async function startNav() {
   navStopIdx   = 0;
   navMuted     = false;
   navFollowing = true;
-  offCourseCount = 0;
+  offCourseCount   = 0;
+  currentZoomBand  = -1;
+  smoothHeading    = null;
+
   document.getElementById("btn-mute").classList.remove("muted");
   document.getElementById("btn-recenter").classList.remove("show");
 
   navStartTs = Date.now();
-  navStartTime = Date.now();
   isNav = true;
   document.body.classList.add("navigating");
   document.getElementById("nav-overlay").classList.add("active");
   document.getElementById("nav-progress-bar").style.display = "block";
 
-  // Reset done-route line
   if (routeLineDone) { map.removeLayer(routeLineDone); routeLineDone = null; }
 
   const pos = gpsCurrent || start;
@@ -1253,15 +1273,14 @@ async function startNav() {
 async function fetchNavSteps() {
   if (!start || !stops.length) return;
   const remaining = navStops.slice(navStopIdx);
-  const points = [start, ...remaining.map(s=>s.coord)];
-  const coordStr = points.map(c=>`${c[1]},${c[0]}`).join(";");
+  const points    = [start, ...remaining.map(s=>s.coord)];
+  const coordStr  = points.map(c=>`${c[1]},${c[0]}`).join(";");
   try {
     const data = await fetch(
       `https://router.project-osrm.org/trip/v1/driving/${coordStr}?source=first&roundtrip=false&steps=true&geometries=geojson`
     ).then(r => r.json());
     if (!data.trips?.length) return;
 
-    // Compute total route distance for ETA
     navRouteDistM = data.trips[0].distance || 0;
     navDistDoneM  = 0;
 
@@ -1325,23 +1344,31 @@ function onNavGPSUpdate() {
 
   updateNavHUD();
 
-  // Map rotation — course-up
-  if (gpsHeading != null && navFollowing) {
+  if (!navFollowing || mapIsDragging) return;
+
+  // ── Map rotation — only when moving ─────────────────────────────────
+  if (gpsHeading != null && gpsSpeed > MIN_HEADING_SPEED_MPS) {
     smoothRotateTo(gpsHeading);
   }
 
-  // Auto-pan + speed-based zoom
-  if (navFollowing && !mapIsDragging) {
-    const targetZoom = navZoomForSpeed(gpsSpeed || 0);
-    const curZoom = map.getZoom();
-    if (Math.abs(curZoom - targetZoom) > 0.5) {
-      map.setView(start, targetZoom);
-    } else {
-      map.panTo(start);
+  // ── Zoom — only change band when speed crosses a threshold ───────────
+  const spd = gpsSpeed || 0;
+  const newBand = zoomBandForSpeed(spd);
+  if (newBand !== currentZoomBand) {
+    currentZoomBand = newBand;
+    const targetZoom = ZOOM_BANDS[newBand].zoom;
+    // Use flyTo for smooth zoom transition — much less jarring than setView
+    map.flyTo(start, targetZoom, { animate:true, duration:1.2 });
+  } else {
+    // ── Pan throttled: only reposition every PAN_INTERVAL_MS ────────────
+    const now = Date.now();
+    if (now - lastPanTime >= PAN_INTERVAL_MS) {
+      lastPanTime = now;
+      // panTo is smooth and doesn't reset zoom
+      map.panTo(start, { animate:true, duration:0.6, easeLinearity:0.5 });
     }
   }
 
-  // Update "done" portion of route line
   updateDoneRouteLine();
 }
 
@@ -1383,21 +1410,15 @@ function advanceStepByProximity() {
   }
 }
 
-// Update the green "completed" portion of the route
 function updateDoneRouteLine() {
   if (!routeLine || !start) return;
-  // We draw a simple line from start to current GPS — real apps use matched positions
-  // For now just colour from the origin of the current leg start to current pos
   const latlngs = routeLine.getLatLngs();
   if (!latlngs.length) return;
-
-  // Find closest point on route to current position
   let minDist = Infinity, minIdx = 0;
   for (let i = 0; i < latlngs.length - 1; i++) {
     const d = pointToSegmentDist(start, [latlngs[i].lat, latlngs[i].lng], [latlngs[i+1].lat, latlngs[i+1].lng]);
     if (d < minDist) { minDist = d; minIdx = i; }
   }
-
   const donePts = [...latlngs.slice(0, minIdx+1), L.latLng(start[0], start[1])];
   if (routeLineDone) {
     routeLineDone.setLatLngs(donePts);
@@ -1429,14 +1450,13 @@ function onStopArrival() {
   } else {
     const next = navStops[navStopIdx];
     setTimeout(() => speak(`Heading to stop ${next.pos}. ${next.address}.`, false), 1200);
-    // Refetch steps for remaining stops
     setTimeout(fetchNavSteps, 1500);
   }
 }
 
 function stopNav() {
   isNav = false; navFollowing = true;
-  // Reset map rotation to north-up
+  smoothHeading = null; currentZoomBand = -1;
   smoothRotateTo(0);
   clearStepMarkers();
   if (routeLineDone) { map.removeLayer(routeLineDone); routeLineDone = null; }
@@ -1490,7 +1510,6 @@ function updateNavHUD() {
   document.getElementById("nav-progress-fill").style.width =
     `${Math.round((navStepIdx / totalSteps) * 100)}%`;
 
-  // Speed
   const speedEl = document.getElementById("nav-speed-val");
   if (gpsSpeed != null && gpsSpeed > 0.5) {
     speedEl.textContent = fmtSpeed(gpsSpeed);
@@ -1498,26 +1517,21 @@ function updateNavHUD() {
     speedEl.textContent = "0 mph";
   }
 
-  // Stop counter
   document.getElementById("nav-stop-val").textContent =
     navStopIdx >= totalStops ? "Done" : `${navStopIdx+1}/${totalStops}`;
 
-  // ETA — estimate from remaining route distance and current speed
-  const remDistM = Math.max(0, navRouteDistM - navDistDoneM);
-  const avgSpeedMps = (gpsSpeed && gpsSpeed > 0.5) ? gpsSpeed : 10; // fallback 10 m/s (~22 mph)
-  const etaSec = remDistM / avgSpeedMps;
-  document.getElementById("nav-eta-val").textContent = fmtETA(etaSec);
+  const remDistM  = Math.max(0, navRouteDistM - navDistDoneM);
+  const avgSpeedMps = (gpsSpeed && gpsSpeed > 0.5) ? gpsSpeed : 10;
+  const etaSec    = remDistM / avgSpeedMps;
+  document.getElementById("nav-eta-val").textContent    = fmtETA(etaSec);
   document.getElementById("nav-remain-val").textContent = fmtDuration(etaSec);
 
   if (navSteps.length && navStepIdx < navSteps.length) {
     const step = navSteps[navStepIdx];
     const info = maneuverInfo(step);
 
-    // Prominent distance to next turn at top
     if (start && step._coord) {
-      const d = hav(start, step._coord);
-      document.getElementById("nav-dist-to-turn").textContent = fmtDist(d);
-      document.getElementById("nav-step-dist") && (document.getElementById("nav-step-dist").textContent = fmtDist(d));
+      document.getElementById("nav-dist-to-turn").textContent = fmtDist(hav(start, step._coord));
     } else {
       document.getElementById("nav-dist-to-turn").textContent = fmtDist(step.distance||0);
     }
@@ -1531,7 +1545,6 @@ function updateNavHUD() {
     svgEl.innerHTML = info.svg;
     svgEl.setAttribute("stroke", info.color);
 
-    // Next turn teaser
     const nextRow = document.getElementById("nav-next-row");
     if (navStepIdx+1 < navSteps.length) {
       const nxt     = navSteps[navStepIdx+1];
@@ -1830,7 +1843,7 @@ document.getElementById("stops-scroll").addEventListener("touchmove", e=>e.stopP
 function handleScreenChange() {
   setTimeout(()=>{
     map.invalidateSize({ pan:true });
-    const targetLoc = isNav ? start : gpsCurrent;
+    const targetLoc  = isNav ? start : gpsCurrent;
     const shouldTrack = isNav ? navFollowing : mapFollowing;
     if (targetLoc && shouldTrack) map.setView(targetLoc, map.getZoom(), { animate:false });
   }, 300);
