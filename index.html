@@ -1670,19 +1670,27 @@
     if (!start) throw new Error("No GPS");
     const [lat,lon]=start;
 
-    // Attempt 1: Strict local search (within ~11km)
-    let vb=`${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}`;
-    let rs = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=20&viewbox=${vb}&bounded=1`,
-      { headers:{ Accept:"application/json" } }
-    ).then(r=>r.json());
+    // Helper for searching
+    const search = async (query, bounded = 1) => {
+      // 0.2 degrees is approx 22km (13.7 miles) - a good local range
+      let vb = `${lon-0.2},${lat+0.2},${lon+0.2},${lat-0.2}`;
+      let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=50&viewbox=${vb}`;
+      if (bounded) url += "&bounded=1";
+      return fetch(url, { headers:{ Accept:"application/json" } }).then(r=>r.json());
+    };
 
-    // Attempt 2: If no strict local results, broaden search but keep viewbox as hint
+    // Attempt 1: Strict local search (within ~22km)
+    let rs = await search(q, 1);
+
+    // Attempt 2: If no results and looks like missing apostrophe (e.g. "mcdonalds"), try adding it
+    if ((!rs || rs.length === 0) && /^[a-z0-9 ]+s$/i.test(q) && !q.includes("'")) {
+      const altQ = q.slice(0, -1) + "'s";
+      rs = await search(altQ, 1);
+    }
+
+    // Attempt 3: If still no local results, broaden search but keep viewbox as hint
     if (!rs || rs.length === 0) {
-      rs = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=20&viewbox=${vb}`,
-        { headers:{ Accept:"application/json" } }
-      ).then(r=>r.json());
+      rs = await search(q, 0);
     }
 
     if (!rs?.length) throw new Error("Not found");
