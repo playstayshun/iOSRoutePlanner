@@ -1669,15 +1669,34 @@
   async function fwdGeo(q) {
     if (!start) throw new Error("No GPS");
     const [lat,lon]=start;
-    const vb=`${lon-.25},${lat+.25},${lon+.25},${lat-.25}`;
-    const rs=await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=10&viewbox=${vb}`,
+
+    // Attempt 1: Strict local search (within ~11km)
+    let vb=`${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}`;
+    let rs = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=20&viewbox=${vb}&bounded=1`,
       { headers:{ Accept:"application/json" } }
     ).then(r=>r.json());
+
+    // Attempt 2: If no strict local results, broaden search but keep viewbox as hint
+    if (!rs || rs.length === 0) {
+      rs = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=20&viewbox=${vb}`,
+        { headers:{ Accept:"application/json" } }
+      ).then(r=>r.json());
+    }
+
     if (!rs?.length) throw new Error("Not found");
-    let best=rs[0], bd=Infinity;
-    rs.forEach(it=>{ const d=hav([lat,lon],[+it.lat,+it.lon]); if(d<bd){bd=d;best=it;} });
-    return { coord:[+best.lat,+best.lon], display:best.display_name };
+
+    // Manual sorting by physical distance to ensure the absolute closest result is picked
+    // Nominatim's relevance score can sometimes favor distant places with better name matches.
+    let results = rs.map(it => ({
+      coord: [+it.lat, +it.lon],
+      display: it.display_name,
+      dist: hav([lat, lon], [+it.lat, +it.lon])
+    }));
+
+    results.sort((a, b) => a.dist - b.dist);
+    return results[0];
   }
 
   function shortAddr(s) {
