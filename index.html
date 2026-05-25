@@ -1667,8 +1667,9 @@
   }
 
   async function fwdGeo(q) {
-    if (!start) throw new Error("No GPS");
-    const [lat,lon]=start;
+    const activeLoc = gpsCurrent || start;
+    if (!activeLoc) throw new Error("No GPS");
+    const [lat,lon]=activeLoc;
 
     // Industry-standard proximity search: Bias heavily towards user location
     // but don't "lock" the box so we can still find specific addresses elsewhere.
