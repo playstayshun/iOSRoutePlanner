@@ -1162,11 +1162,16 @@
       left:           `<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/>`,
       "sharp left":   `<path d="M19 18 Q6 18 6 5"/><polyline points="11 5 6 5 6 10"/>`,
       uturn:          `<path d="M7 17 V7 a5 5 0 0 1 10 0v3"/><polyline points="13 7 17 10 13 13"/>`,
+      merge:          `<path d="M12 19 V9 M12 9 L7 4 M12 9 L17 4" />`,
+      fork:           `<path d="M12 19 V12 M12 12 L7 5 M12 12 L17 5" />`,
+      "on ramp":      `<path d="M6 18 Q12 18 12 5"/><polyline points="7 5 12 5 12 10"/>`,
+      "off ramp":     `<path d="M12 19 V10 Q12 5 18 5"/><polyline points="13 5 18 5 18 10"/>`,
     };
     const VOICE_TURN = {
       straight:"Continue straight", "slight right":"Bear right", right:"Turn right",
       "sharp right":"Turn sharp right", "slight left":"Bear left", left:"Turn left",
       "sharp left":"Turn sharp left", uturn:"Make a U-turn",
+      merge:"Merge", fork:"Take the fork", "on ramp":"Take the ramp", "off ramp":"Take the exit ramp",
     };
 
     let svg    = ARROWS[mod]  || ARROWS.straight;
@@ -1260,18 +1265,27 @@
     const pos = gpsCurrent || start;
     if (pos) map.setView(pos, 17);
 
-    await fetchNavSteps();
+    try {
+      await fetchNavSteps();
+    } catch (e) {
+      pill("Failed to load navigation steps", 3000, "red");
+      stopNav();
+    }
   }
 
   async function fetchNavSteps() {
-    if (!start || !stops.length) return;
+    const activeStart = savedStart || gpsCurrent;
+    if (!activeStart || !stops.length) return;
     const remaining = navStops.slice(navStopIdx);
-    const points = [start, ...remaining.map(s=>s.coord)];
+    const points = [activeStart, ...remaining.map(s=>s.coord)];
     const coordStr = points.map(c=>`${c[1]},${c[0]}`).join(";");
     try {
       const data = await fetch(
         `https://router.project-osrm.org/trip/v1/driving/${coordStr}?source=first&roundtrip=false&steps=true&geometries=geojson`
-      ).then(r => r.json());
+      ).then(r => {
+        if (!r.ok) throw new Error("OSRM error");
+        return r.json();
+      });
       if (!data.trips?.length) return;
 
       // Compute total route distance for ETA
@@ -1706,14 +1720,18 @@
 
   /* ── OPTIMIZE ─────────────────────────────────────────────────────────── */
   async function doOptimize() {
-    if (!start||!stops.length) return;
+    const activeStart = savedStart || gpsCurrent;
+    if (!activeStart || !stops.length) return;
     const myGen=++optGen;
     clearLines();
-    const coords=[start,...stops.map(s=>s.coord)].map(c=>`${c[1]},${c[0]}`).join(";");
+    const coords=[activeStart, ...stops.map(s=>s.coord)].map(c=>`${c[1]},${c[0]}`).join(";");
     try {
       const data=await fetch(
         `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&geometries=geojson`
-      ).then(r=>r.json());
+      ).then(r=>{
+        if (!r.ok) throw new Error("OSRM error");
+        return r.json();
+      });
       if (optGen!==myGen||!data.trips?.length) return;
       stops.forEach((s,i)=>{ s.pos=data.waypoints[i+1].waypoint_index; });
       const mn=Math.min(...stops.map(s=>s.pos));
@@ -1724,7 +1742,10 @@
       glowLine  =L.polyline(pts,{ color:"#e3293a",weight:11,opacity:.13,lineCap:"round",lineJoin:"round" }).addTo(map);
       routeLine =L.polyline(pts,{ color:"#e3293a",weight:3.5,opacity:.92,lineCap:"round",lineJoin:"round" }).addTo(map);
       map.fitBounds(routeLine.getBounds(),{ padding:[28,28] });
-    } catch(e) { console.error("OSRM:",e); }
+    } catch(e) {
+      console.error("OSRM:",e);
+      pill("Routing service unavailable", 3000, "red");
+    }
   }
 
   /* ── CLEAR ────────────────────────────────────────────────────────────── */
