@@ -1670,25 +1670,50 @@
     if (!start) throw new Error("No GPS");
     const [lat,lon]=start;
 
-    // Attempt 1: Strict local search (within ~11km)
-    let vb=`${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}`;
-    let rs = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=20&viewbox=${vb}&bounded=1`,
-      { headers:{ Accept:"application/json" } }
-    ).then(r=>r.json());
+    // Attempt to get current city for anchoring
+    let cityName = "";
+    try {
+      const rev = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
+        { headers:{ Accept:"application/json" } }
+      ).then(r => r.json());
+      if (rev && rev.address) {
+        cityName = rev.address.city || rev.address.town || rev.address.village || rev.address.suburb || "";
+      }
+    } catch(e) {}
 
-    // Attempt 2: If no strict local results, broaden search but keep viewbox as hint
+    const vb = `${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}`; // ~11km box
+    const bias = `&lat=${lat}&lon=${lon}`;
+    let rs = [];
+
+    // Stage 1: City-anchored strict search
+    if (cityName) {
+      const query = `${q}, ${cityName}`;
+      rs = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=50&viewbox=${vb}&bounded=1${bias}`,
+        { headers:{ Accept:"application/json" } }
+      ).then(r=>r.json());
+    }
+
+    // Stage 2: Strict local search (if stage 1 failed or no city)
     if (!rs || rs.length === 0) {
       rs = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=20&viewbox=${vb}`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=50&viewbox=${vb}&bounded=1${bias}`,
+        { headers:{ Accept:"application/json" } }
+      ).then(r=>r.json());
+    }
+
+    // Stage 3: Broad search (if still nothing)
+    if (!rs || rs.length === 0) {
+      rs = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=50&viewbox=${vb}${bias}`,
         { headers:{ Accept:"application/json" } }
       ).then(r=>r.json());
     }
 
     if (!rs?.length) throw new Error("Not found");
 
-    // Manual sorting by physical distance to ensure the absolute closest result is picked
-    // Nominatim's relevance score can sometimes favor distant places with better name matches.
+    // Aggregate and sort by physical distance
     let results = rs.map(it => ({
       coord: [+it.lat, +it.lon],
       display: it.display_name,
