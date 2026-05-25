@@ -1119,32 +1119,68 @@
 
   function unlockSpeech() {
     if (speechUnlocked || !synth) return;
-    const u = new SpeechSynthesisUtterance(' ');
-    u.volume = 0; u.rate = 10;
+
+    // Mobile browsers require a real utterance to unlock.
+    // We use a very short, nearly silent one.
+    const u = new SpeechSynthesisUtterance('voice ready');
+    u.volume = 0.01;
+    u.rate = 1.0;
     synth.speak(u);
     speechUnlocked = true;
+
+    // Keep-alive pulse: prevents mobile OS from sleeping the audio session
+    if (voiceKeepalive) clearInterval(voiceKeepalive);
     voiceKeepalive = setInterval(() => {
-      if (!synth || navMuted) return;
+      if (!synth || navMuted || !isNav) return;
       if (synth.paused) synth.resume();
-      if (!synth.speaking && isNav) synth.resume();
-    }, 10000);
+      // Only pulse if not already speaking
+      if (!synth.speaking) {
+        const pulse = new SpeechSynthesisUtterance('');
+        pulse.volume = 0;
+        synth.speak(pulse);
+      }
+    }, 15000);
   }
 
+  // Bind to multiple events for widest compatibility
   document.addEventListener('touchstart', unlockSpeech, { once:true, passive:true });
-  document.addEventListener('click', unlockSpeech, { once:true });
-  if (synth) { synth.onvoiceschanged = () => synth.getVoices(); synth.getVoices(); }
+  document.addEventListener('mousedown', unlockSpeech, { once:true });
+
+  if (synth) {
+    synth.onvoiceschanged = () => synth.getVoices();
+    synth.getVoices();
+  }
 
   function speak(text, interrupt) {
     if (!synth || navMuted) return;
+
+    // Always resume before speaking to wake up mobile engines
+    synth.resume();
+
     if (interrupt) synth.cancel();
+
     const u = new SpeechSynthesisUtterance(text);
     u.rate=1.05; u.pitch=1.0; u.volume=1.0; u.lang='en-US';
-    const voices = synth.getVoices();
+
+    let voices = synth.getVoices();
+    // Mobile browsers sometimes need a second to load voices after first interaction
+    if (!voices.length) {
+      synth.getVoices();
+      voices = synth.getVoices();
+    }
+
     const pref = voices.find(v => /en[-_](US|GB|AU)/i.test(v.lang) && !/microsoft|zira|david|hazel/i.test(v.name))
-              || voices.find(v => /en/i.test(v.lang));
+              || voices.find(v => /en/i.test(v.lang))
+              || voices[0];
+
     if (pref) u.voice = pref;
-    if (synth.paused) synth.resume();
-    synth.speak(u);
+
+    // iOS fix: sometimes cancel/speak needs a tiny delay to register properly
+    if (interrupt) {
+      setTimeout(() => synth.speak(u), 50);
+    } else {
+      synth.speak(u);
+    }
   }
 
   /* ── Maneuver info ────────────────────────────────────────────────────── */
