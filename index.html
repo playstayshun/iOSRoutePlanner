@@ -1667,54 +1667,17 @@
   }
 
   async function fwdGeo(q) {
-    const activeLoc = gpsCurrent || start;
-    if (!activeLoc) throw new Error("No GPS");
-    const [lat,lon]=activeLoc;
-
-    // Industry-standard proximity search: Bias heavily towards user location
-    // but don't "lock" the box so we can still find specific addresses elsewhere.
-    const vb = `${lon-0.5},${lat+0.5},${lon+0.5},${lat-0.5}`; // ~50km bias box
-    const bias = `&lat=${lat}&lon=${lon}`;
-
-    // Fetch a large result pool (50) to ensure we find all local candidates
-    const rs = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=50&viewbox=${vb}${bias}`,
+    if (!start) throw new Error("No GPS");
+    const [lat,lon]=start;
+    const vb=`${lon-.25},${lat+.25},${lon+.25},${lat-.25}`;
+    const rs=await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=10&viewbox=${vb}`,
       { headers:{ Accept:"application/json" } }
     ).then(r=>r.json());
-
     if (!rs?.length) throw new Error("Not found");
-
-    // Smart Ranking:
-    // 1. Convert to results with distances
-    let results = rs.map((it, index) => ({
-      coord: [+it.lat, +it.lon],
-      display: it.display_name,
-      type: it.type,
-      class: it.class,
-      importance: it.importance || 0,
-      osm_rank: index, // The search engine's internal rank
-      dist: hav([lat, lon], [+it.lat, +it.lon])
-    }));
-
-    // 2. Identify if this is likely a keyword/brand search vs a specific address
-    // Keywords are usually short and don't contain numbers.
-    const isKeyword = !/\d/.test(q) || q.length < 12;
-
-    results.sort((a, b) => {
-      if (isKeyword) {
-        // For brands/keywords (e.g. "McDonalds"), physical distance is king.
-        // We only prefer the engine's rank if the distance difference is negligible (< 500m)
-        if (Math.abs(a.dist - b.dist) > 500) return a.dist - b.dist;
-        return a.osm_rank - b.osm_rank;
-      } else {
-        // For addresses (e.g. "123 Main St"), text relevance (importance/rank) is king.
-        // But if two results are both highly relevant, we pick the closer one.
-        if (Math.abs(a.importance - b.importance) > 0.1) return b.importance - a.importance;
-        return a.dist - b.dist;
-      }
-    });
-
-    return results[0];
+    let best=rs[0], bd=Infinity;
+    rs.forEach(it=>{ const d=hav([lat,lon],[+it.lat,+it.lon]); if(d<bd){bd=d;best=it;} });
+    return { coord:[+best.lat,+best.lon], display:best.display_name };
   }
 
   function shortAddr(s) {
