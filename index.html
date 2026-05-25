@@ -1292,6 +1292,11 @@
       navRouteDistM = data.trips[0].distance || 0;
       navDistDoneM  = 0;
 
+      // Update main route line to the new path
+      const pts = data.trips[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+      if (glowLine) glowLine.setLatLngs(pts);
+      if (routeLine) routeLine.setLatLngs(pts);
+
       navSteps = [];
       let legIdx = 0;
       for (const leg of data.trips[0].legs) {
