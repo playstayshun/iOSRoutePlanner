@@ -1670,57 +1670,49 @@
     if (!start) throw new Error("No GPS");
     const [lat,lon]=start;
 
-    // Attempt to get current city for anchoring
-    let cityName = "";
-    try {
-      const rev = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
-        { headers:{ Accept:"application/json" } }
-      ).then(r => r.json());
-      if (rev && rev.address) {
-        cityName = rev.address.city || rev.address.town || rev.address.village || rev.address.suburb || "";
-      }
-    } catch(e) {}
-
-    const vb = `${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}`; // ~11km box
+    // Industry-standard proximity search: Bias heavily towards user location
+    // but don't "lock" the box so we can still find specific addresses elsewhere.
+    const vb = `${lon-0.5},${lat+0.5},${lon+0.5},${lat-0.5}`; // ~50km bias box
     const bias = `&lat=${lat}&lon=${lon}`;
-    let rs = [];
 
-    // Stage 1: City-anchored strict search
-    if (cityName) {
-      const query = `${q}, ${cityName}`;
-      rs = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=50&viewbox=${vb}&bounded=1${bias}`,
-        { headers:{ Accept:"application/json" } }
-      ).then(r=>r.json());
-    }
-
-    // Stage 2: Strict local search (if stage 1 failed or no city)
-    if (!rs || rs.length === 0) {
-      rs = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=50&viewbox=${vb}&bounded=1${bias}`,
-        { headers:{ Accept:"application/json" } }
-      ).then(r=>r.json());
-    }
-
-    // Stage 3: Broad search (if still nothing)
-    if (!rs || rs.length === 0) {
-      rs = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=50&viewbox=${vb}${bias}`,
-        { headers:{ Accept:"application/json" } }
-      ).then(r=>r.json());
-    }
+    // Fetch a large result pool (50) to ensure we find all local candidates
+    const rs = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=50&viewbox=${vb}${bias}`,
+      { headers:{ Accept:"application/json" } }
+    ).then(r=>r.json());
 
     if (!rs?.length) throw new Error("Not found");
 
-    // Aggregate and sort by physical distance
-    let results = rs.map(it => ({
+    // Smart Ranking:
+    // 1. Convert to results with distances
+    let results = rs.map((it, index) => ({
       coord: [+it.lat, +it.lon],
       display: it.display_name,
+      type: it.type,
+      class: it.class,
+      importance: it.importance || 0,
+      osm_rank: index, // The search engine's internal rank
       dist: hav([lat, lon], [+it.lat, +it.lon])
     }));
 
-    results.sort((a, b) => a.dist - b.dist);
+    // 2. Identify if this is likely a keyword/brand search vs a specific address
+    // Keywords are usually short and don't contain numbers.
+    const isKeyword = !/\d/.test(q) || q.length < 12;
+
+    results.sort((a, b) => {
+      if (isKeyword) {
+        // For brands/keywords (e.g. "McDonalds"), physical distance is king.
+        // We only prefer the engine's rank if the distance difference is negligible (< 500m)
+        if (Math.abs(a.dist - b.dist) > 500) return a.dist - b.dist;
+        return a.osm_rank - b.osm_rank;
+      } else {
+        // For addresses (e.g. "123 Main St"), text relevance (importance/rank) is king.
+        // But if two results are both highly relevant, we pick the closer one.
+        if (Math.abs(a.importance - b.importance) > 0.1) return b.importance - a.importance;
+        return a.dist - b.dist;
+      }
+    });
+
     return results[0];
   }
 
